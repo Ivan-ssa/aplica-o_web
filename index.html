@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leitor e Cruzamento de Dados Excel</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <h1>Leitor e Cruzamento de Dados Excel</h1>
+
+    <p>Selecione os arquivos Excel (o arquivo de equipamentos e os de calibração):</p>
+    <input type="file" id="excelFileInput" accept=".xls,.xlsx" multiple>
+    <button id="processButton">Processar Arquivos</button>
+
+    <h2>Mensagens:</h2>
+    <pre id="output"></pre>
+
+    ---
+
+    <h2>Equipamentos Cadastrados</h2>
+    <div id="equipmentTableContainer">
+        <div id="filterContainer">
+            <label for="sectorFilter">Filtrar por Setor:</label>
+            <select id="sectorFilter">
+                <option value="">Todos os Setores</option>
+                </select>
+
+            <label for="calibrationStatusFilter">Filtrar por Status de Calibração:</label>
+            <select id="calibrationStatusFilter">
+                <option value="">Todos os Status</option>
+                <option value="Calibrado">Calibrado</option>
+                <option value="Não Calibrado">Não Calibrado</option>
+            </select>
+            <span id="equipmentCount">Total: 0 equipamentos</span>
+        </div>
+
+        <table id="equipmentTable">
+            <thead>
+                <tr>
+                    <th>TAG</th>
+                    <th>Equipamento</th>
+                    <th>Modelo</th>
+                    <th>Fabricante</th>
+                    <th>Setor</th>
+                    <th>Nº Série</th>
+                    <th>Patrimônio</th>
+                    <th>Status Calibração</th>
+                    <th>Data Vencimento Calibração</th>
+                </tr>
+            </thead>
+            <tbody>
+                </tbody>
+        </table>
+    </div>
+
+    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
