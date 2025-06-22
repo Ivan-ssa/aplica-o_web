@@ -93,11 +93,11 @@ tr:hover {
 
 /* Estilos para destaque das linhas */
 .not-calibrated {
-    background-color: #ffebeb; /* Vermelho claro suave */
+    background-color: #F93E38; /* Vermelho claro suave */
     border-left: 5px solid #e74c3c; /* Borda vermelha forte */
 }
 .calibrated {
-    background-color: #ebfaeb; /* Verde claro suave */
+    background-color: #4FC24F; /* Verde claro suave */
     border-left: 5px solid #28a745; /* Borda verde forte */
 }
 /* Estilo para calibração vencida (opcional, adicione a lógica no JS se for usar) */
