@@ -51,10 +51,8 @@ th {
     font-weight: bold;
     color: #495057;
 }
-/* REMOVE OU COMENTE ESSA REGRA PARA EVITAR INTERCALAÇÃO se quiser um fundo uniforme */
-/* Se você ainda quer o efeito zebra em linhas NÃO destacadas, mantenha esta regra abaixo das classes de destaque */
 tr:nth-child(even) {
-    background-color: #f8f9fa; /* Cor de fundo para linhas pares, mas será sobreposta pelas classes de destaque */
+    background-color: #f8f9fa; /* Mantido para linhas não destacadas */
 }
 tr:hover {
     background-color: #e2e6ea;
@@ -86,25 +84,30 @@ tr:hover {
 }
 #equipmentCount {
     font-weight: bold;
-    margin-left: auto; /* Empurra para a direita */
+    margin-left: auto;
     padding: 5px 10px;
     background-color: #e0f7fa;
     border-radius: 5px;
     color: #007bff;
 }
 
-/* Estilos para destaque das linhas - AGORA MAIS ESPECÍFICOS */
-/* Adicionado 'tr.' para aumentar a especificidade e garantir que as cores de destaque prevaleçam */
+/* Estilos para destaque das linhas */
 tr.not-calibrated {
-    background-color: #ffcccc; /* Vermelho claro mais visível */
-    border-left: 5px solid #d9534f; /* Borda vermelha um pouco mais escura */
+    background-color: #ffcccc;
+    border-left: 5px solid #d9534f;
 }
 tr.calibrated {
-    background-color: #ccffcc; /* Verde claro mais visível */
-    border-left: 5px solid #5cb85c; /* Borda verde um pouco mais escura */
+    background-color: #ccffcc;
+    border-left: 5px solid #5cb85c;
 }
-/* Estilo para calibração vencida (mantido como antes) */
-tr.expired-calibration { /* Também adicionado 'tr.' por consistência */
-    background-color: #fff3cd; /* Amarelo claro para vencido */
-    border-left: 5px solid #ffc107; /* Borda laranja */
+/* NOVO ESTILO PARA AS DIVERGÊNCIAS */
+tr.divergent-calibrated {
+    background-color: #fffacd; /* Amarelo claro, como a calibração vencida */
+    border-left: 5px solid #ffcc00; /* Borda amarela mais forte */
+}
+
+/* Estilo para calibração vencida (se você adicionar a lógica no JS) */
+tr.expired-calibration {
+    background-color: #fff3cd;
+    border-left: 5px solid #ffc107;
 }
