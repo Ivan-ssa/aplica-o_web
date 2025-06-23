@@ -1,8 +1,8 @@
 // js/main.js
 import { readFile, parseEquipmentSheet, parseCalibrationSheet } from './excelReader.js';
 import { crossReferenceData } from './dataProcessor.js';
-// uiRenderer.js vai precisar de uma pequena alteração
-import { renderEquipmentTable, populateSectorFilter, renderDivergentCalibrationsTable } from './uiRenderer.js'; 
+// MUDANÇA AQUI: REMOVER 'renderDivergentCalibrationsTable'
+import { renderEquipmentTable, populateSectorFilter } from './uiRenderer.js'; 
 import { exportTableToExcel } from './excelExporter.js'; 
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -14,15 +14,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const calibrationStatusFilter = document.getElementById('calibrationStatusFilter');
     const equipmentCountSpan = document.getElementById('equipmentCount');
     const exportButton = document.getElementById('exportButton');
-    // REMOVER a referência à tabela de divergências se você a removeu do HTML
-    // const divergentCalibrationsTableBody = document.querySelector('#divergentCalibrationsTable tbody');
 
-    let allEquipmentData = []; // Armazenará equipamentos + "equipamentos" divergentes
+    let allEquipmentData = [];
     let allCalibrationData = []; 
     let currentlyDisplayedData = []; 
-    // A variável divergentCalibrations não será mais necessária como um array separado aqui,
-    // pois os itens divergentes serão injetados em allEquipmentData com um status especial.
-    // let divergentCalibrations = []; 
+    let divergentCalibrations = []; 
 
     const applyFilters = () => {
         let filteredData = allEquipmentData;
@@ -32,7 +28,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (selectedSector !== "") {
             filteredData = filteredData.filter(eq => eq.Setor && eq.Setor.trim() === selectedSector);
         }
-
         if (selectedStatus !== "") {
             filteredData = filteredData.filter(eq => eq.calibrationStatus === selectedStatus);
         }
@@ -67,19 +62,13 @@ document.addEventListener('DOMContentLoaded', () => {
         calibrationStatusFilter.value = "";
         equipmentCountSpan.textContent = `Total: 0 equipamentos`;
         currentlyDisplayedData = [];
-        // divergentCalibrations = []; // Remover esta linha
-
-        // Limpar a tabela de divergências se ela ainda estiver no HTML
-        // if (divergentCalibrationsTableBody) {
-        //     divergentCalibrationsTableBody.innerHTML = '<tr><td colspan="6">Nenhum dado processado.</td></tr>';
-        // }
-
+        divergentCalibrations = []; 
 
         try {
             const fileResults = await Promise.all(Array.from(files).map(readFile));
 
-            let tempEquipmentData = []; // Para armazenar equipamentos lidos antes de adicionar divergências
-            let tempCalibrationData = []; // Para armazenar calibrações lidas
+            let tempEquipmentData = [];
+            let tempCalibrationData = [];
 
             fileResults.forEach(result => {
                 const { fileName, workbook } = result;
@@ -99,38 +88,32 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             });
 
-            // Re-executa o cruzamento de dados para injetar divergências
-            // E agora retorna os dados de divergência para que possamos injetá-los em allEquipmentData
             const { equipmentData: processedEquipmentData, calibratedCount, notCalibratedCount, divergentCalibrations: newDivergentCalibrations } = crossReferenceData(tempEquipmentData, tempCalibrationData, outputDiv);
             
-            // Aqui está a grande mudança: adicionamos os "equipamentos" divergentes à lista principal
             allEquipmentData = processedEquipmentData.concat(newDivergentCalibrations.map(cal => ({
-                TAG: cal.TAG || 'N/A',
+                TAG: cal.TAG || 'N/A', // Pode ser que DHME não tenha TAG
                 Equipamento: cal.EQUIPAMENTO || 'N/A',
                 Modelo: cal.MODELO || 'N/A',
-                Fabricante: cal.MARCA || 'N/A', // Usar MARCA como Fabricante
+                Fabricante: cal.MARCA || 'N/A',
                 Setor: cal.SETOR || 'N/A',
-                'Nº Série': cal.SN || 'N/A', // SN do DHME
+                'Nº Série': cal.SN || 'N/A',
                 Patrimônio: cal.PATRIM || 'N/A',
-                calibrationStatus: 'Não Cadastrado (DHME)', // NOVO STATUS PARA DIVERGÊNCIA
-                calibrations: [cal], // Mantenha a calibração original aqui para referência
+                calibrationStatus: 'Não Cadastrado (DHME)',
+                calibrations: [cal],
                 nextCalibrationDate: cal['DATA VAL'] || 'N/A'
             })));
 
 
-            // allEquipmentData = equipmentData; // Esta linha será removida ou ajustada
-
-            applyFilters(); // Renderiza com a lista completa, incluindo os divergentes
+            applyFilters();
             populateSectorFilter(allEquipmentData, sectorFilter);
             outputDiv.textContent += '\nProcessamento concluído. Verifique a tabela abaixo.';
 
-            // REMOVER o código de renderização de divergências na área de output,
-            // pois elas agora estarão na tabela principal com o novo status
-            // if (divergentCalibrations.length > 0) {
-            //     outputDiv.textContent += `\n\n--- Calibrações com Divergência (${divergentCalibrations.length}) listadas na tabela abaixo. ---`;
-            // } else {
-            //     outputDiv.textContent += `\n\nNão foram encontradas calibrações sem equipamento correspondente.`;
-            // }
+            // Mensagem atualizada sobre divergências
+            if (newDivergentCalibrations.length > 0) {
+                outputDiv.textContent += `\n\n--- Calibrações com Divergência (${newDivergentCalibrations.length}) listadas na tabela principal com status "Não Cadastrado (DHME)". ---`;
+            } else {
+                outputDiv.textContent += `\n\nNão foram encontradas calibrações sem equipamento correspondente.`;
+            }
 
         } catch (error) {
             outputDiv.textContent = `Ocorreu um erro geral no processamento: ${error.message}`;
