@@ -5,7 +5,7 @@ import { renderEquipmentTable, populateSectorFilter } from './uiRenderer.js';
 import { exportTableToExcel } from './excelExporter.js';
 
 document.addEventListener('DOMContentLoaded', () => {
-    // --- DECLARAÇÃO DE TODOS OS ELEMENTOS HTML E VARIÁVEIS ---
+    // --- 1. DECLARAÇÃO DE TODOS OS ELEMENTOS HTML E VARIÁVEIS ---
     const fileInput = document.getElementById('excelFileInput');
     const processButton = document.getElementById('processButton');
     const outputDiv = document.getElementById('output');
@@ -14,20 +14,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const calibrationStatusFilter = document.getElementById('calibrationStatusFilter');
     const equipmentCountSpan = document.getElementById('equipmentCount');
     const exportButton = document.getElementById('exportButton');
-    const searchInput = document.getElementById('searchInput'); // Certifique-se que esta linha está presente e não comentada
+    const searchInput = document.getElementById('searchInput'); // ESTE AQUI!
 
     let allEquipmentData = [];
     let originalEquipmentData = [];
     let allCalibrationData = [];
     let currentlyDisplayedData = [];
 
-    // --- DECLARAÇÃO DA FUNÇÃO applyFilters AGORA NO TOPO ---
-    // Esta função DEVE ser declarada ANTES de ser usada nos addEventListener
+    // --- 2. DECLARAÇÃO DA FUNÇÃO applyFilters ---
+    // ESTA FUNÇÃO DEVE SER DECLARADA ANTES DE SER USADA EM QUALQUER LISTENER
     const applyFilters = () => {
         let filteredData = allEquipmentData;
         const selectedSector = sectorFilter.value;
         const selectedStatus = calibrationStatusFilter.value;
-        const searchTerm = searchInput.value.trim().toLowerCase();
+        const searchTerm = searchInput.value.trim().toLowerCase(); // searchInput já declarado acima
 
         // Aplicar filtro por setor
         if (selectedSector !== "") {
@@ -53,11 +53,14 @@ document.addEventListener('DOMContentLoaded', () => {
         renderEquipmentTable(filteredData, equipmentTableBody, equipmentCountSpan);
     };
 
-    // --- EVENT LISTENERS AGORA CHAMANDO applyFilters APÓS SUA DECLARAÇÃO ---
+    // --- 3. EVENT LISTENERS QUE USAM applyFilters ---
+    // Agora que applyFilters está definida, podemos adicionar os listeners
     if (sectorFilter) sectorFilter.addEventListener('change', applyFilters);
     if (calibrationStatusFilter) calibrationStatusFilter.addEventListener('change', applyFilters);
-    if (searchInput) searchInput.addEventListener('input', applyFilters); // Listener para o buscador
+    // Este é o listener da linha 23 que está causando o erro
+    if (searchInput) searchInput.addEventListener('input', applyFilters); // Garanta que searchInput não é null
 
+    // ... (restante do código: exportButton.addEventListener, processButton.addEventListener) ...
 
     exportButton.addEventListener('click', () => {
         if (currentlyDisplayedData.length > 0) {
