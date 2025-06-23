@@ -1,15 +1,15 @@
 // js/excelReader.js
 
 // Mapeamentos de nomes de colunas alternativos para as chaves padronizadas
-// Adicione aqui outros nomes de colunas que você encontrar em outras planilhas.
 
 // Para o Número de Série (SN)
-const snColumnNames = ['SN', 'NUMERO_SERIE', 'NUMERO DE SERIE', 'SERIAL_NUMBER', 'SERIAL NO'];
+// MUDANÇA AQUI: Adicionado 'NÚMERO DE SÉRIE'
+const snColumnNames = ['SN', 'NUMERO_SERIE', 'NUMERO DE SERIE', 'SERIAL_NUMBER', 'SERIAL NO', 'NÚMERO DE SÉRIE']; 
 
 // Para a Data de Validade da Calibração (DATA VAL) - Sciencetech não tem, mas outras podem ter
 const dataValColumnNames = ['DATA VAL', 'DATA_VALIDADE', 'DATA VALIDADE', 'VALIDADE', 'VALIDITY_DATE', 'VENCIMENTO'];
 
-// Para a Data de Calibração (DATA CAL) - Inclui 'DATA DE CRIACAO'
+// Para a Data de Calibração (DATA CAL)
 const dataCalColumnNames = ['DATA CAL', 'DATA_CALIBRACAO', 'DATA_CAL', 'DATA DE SAIDA', 'DATA DE CRIACAO'];
 
 // Para o nome do Equipamento (EQUIPAMENTO)
@@ -30,14 +30,14 @@ const tipoServicoColumnNames = ['TIPO SERVICO', 'TIPO_SERVICO', 'SERVICE TYPE'];
 
 // Função auxiliar para encontrar o nome da coluna correto (case-insensitive e trim)
 const findHeaderName = (headers, possibleNames) => {
-    const lowerCaseHeaders = headers.map(h => h.toLowerCase()); // Converte todos os cabeçalhos para minúsculas
+    const lowerCaseHeaders = headers.map(h => h.toLowerCase()); 
     for (const name of possibleNames) {
-        if (lowerCaseHeaders.includes(name.toLowerCase())) { // Compara com nomes possíveis em minúsculas
-            // Retorna o nome original da coluna como encontrado nos headers
+        // Compara com nomes possíveis em minúsculas (incluindo o original com acento)
+        if (lowerCaseHeaders.includes(name.toLowerCase())) { 
             return headers[lowerCaseHeaders.indexOf(name.toLowerCase())];
         }
     }
-    return null; // Retorna null se não encontrar nenhum dos nomes possíveis
+    return null; 
 };
 
 
@@ -108,35 +108,27 @@ export const parseCalibrationSheet = (worksheet) => {
     return dataRows.map(row => {
         let obj = {};
         headers.forEach((header, index) => {
-            const value = row[index]; // Pega o valor bruto
+            const value = row[index];
 
-            // Converte valores numéricos de data do Excel para strings formatadas
             if (header === dataValHeader && typeof value === 'number') {
-                obj['DATA VAL'] = XLSX.SSF.format('mm/yyyy', value); // Padroniza para 'DATA VAL'
+                obj['DATA VAL'] = XLSX.SSF.format('mm/yyyy', value); 
             } else if (header === dataCalHeader && typeof value === 'number') {
-                obj['DATA CAL'] = XLSX.SSF.format('dd/mm/yyyy', value); // Padroniza para 'DATA CAL'
+                obj['DATA CAL'] = XLSX.SSF.format('dd/mm/yyyy', value); 
             }
-            // Para outros campos ou se não for data, apenas copia o valor
             obj[header] = value !== undefined ? String(value).trim() : '';
         });
 
-        // Garante que as chaves padronizadas existam no objeto 'obj',
-        // usando os valores encontrados pelos cabeçalhos mapeados
-        obj['SN'] = obj[snHeader] || ''; // Padroniza para 'SN'
-        obj['DATA VAL'] = obj['DATA VAL'] || (dataValHeader ? obj[dataValHeader] : 'N/A'); // Padroniza
-        obj['DATA CAL'] = obj['DATA CAL'] || (dataCalHeader ? obj[dataCalHeader] : 'N/A'); // Padroniza
+        obj['SN'] = obj[snHeader] || ''; 
+        obj['DATA VAL'] = obj['DATA VAL'] || (dataValHeader ? obj[dataValHeader] : 'N/A'); 
+        obj['DATA CAL'] = obj['DATA CAL'] || (dataCalHeader ? obj[dataCalHeader] : 'N/A'); 
         
-        obj['EQUIPAMENTO'] = obj[equipamentoHeader] || ''; // Padroniza
-        obj['FABRICANTE'] = obj[fabricanteHeader] || ''; // Padroniza
-        obj['MODELO'] = obj[modeloHeader] || ''; // Padroniza
-        obj['PATRIM'] = obj[patrimonioHeader] || ''; // Padroniza
-        obj['TIPO SERVICO'] = obj[tipoServicoHeader] || ''; // Padroniza
+        obj['EQUIPAMENTO'] = obj[equipamentoHeader] || ''; 
+        obj['FABRICANTE'] = obj[fabricanteHeader] || ''; 
+        obj['MODELO'] = obj[modeloHeader] || ''; 
+        obj['PATRIM'] = obj[patrimonioHeader] || ''; 
+        obj['TIPO SERVICO'] = obj[tipoServicoHeader] || ''; 
 
-
-        // Limpeza adicional e tratamento de dados importantes
-        obj['SN'] = String(obj['SN']).trim().replace(/^0+/, ''); // Garante SN limpo para cruzamento
-        // Se DATA VAL for 'N/A' e DATA CAL existir, pode-se tentar estimar, mas por enquanto, manter N/A
-        // ou adicionar uma flag de "Data Validade Indefinida"
+        obj['SN'] = String(obj['SN']).trim().replace(/^0+/, ''); 
 
         return obj;
     });
