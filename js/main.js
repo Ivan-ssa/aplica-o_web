@@ -13,130 +13,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const calibrationStatusFilter = document.getElementById('calibrationStatusFilter');
     const equipmentCountSpan = document.getElementById('equipmentCount');
     const exportButton = document.getElementById('exportButton');
+    const searchInput = document.getElementById('searchInput'); // <--- GARANTIR QUE ESTA LINHA ESTÁ DESCOMENTADA E NO LUGAR CERTO
 
-    let allEquipmentData = []; // Contém equipamentos originais + divergentes injetados
-    let originalEquipmentData = []; // NOVO: Para armazenar apenas os equipamentos originais
-    let allCalibrationData = []; 
-    let currentlyDisplayedData = []; 
+    // Resto do código...
+    // ...
 
-    const applyFilters = () => {
-        let filteredData = allEquipmentData;
-        const selectedSector = sectorFilter.value;
-        const selectedStatus = calibrationStatusFilter.value;
-        const searchTerm = searchInput.value.trim().toLowerCase();
+    // NOVO: Adiciona o event listener para o input de busca (se o elemento for encontrado)
+    if (searchInput) {
+        searchInput.addEventListener('input', applyFilters); // Aciona o filtro em cada digitação
+    } else {
+        console.error("Elemento com ID 'searchInput' não encontrado!"); // Ajudar a depurar se o ID estiver errado no HTML
+    }
 
-        if (selectedSector !== "") {
-            filteredData = filteredData.filter(eq => eq.Setor && eq.Setor.trim() === selectedSector);
-        }
-
-        if (selectedStatus !== "") {
-            filteredData = filteredData.filter(eq => eq.calibrationStatus === selectedStatus);
-        }
-
-        if (searchTerm !== "") {
-            filteredData = filteredData.filter(eq => {
-                const tag = String(eq.TAG || '').toLowerCase();
-                const serial = String(eq['Nº Série'] || '').replace(/^0+/, '').toLowerCase();
-                const patrimonio = String(eq.Patrimônio || '').toLowerCase();
-                return tag.includes(searchTerm) || serial.includes(searchTerm) || patrimonio.includes(searchTerm);
-            });
-        }
-
-        currentlyDisplayedData = filteredData;
-        renderEquipmentTable(filteredData, equipmentTableBody, equipmentCountSpan);
-    };
-
-    sectorFilter.addEventListener('change', applyFilters);
-    calibrationStatusFilter.addEventListener('change', applyFilters);
-    // searchInput precisa ser declarado no escopo
-    // const searchInput = document.getElementById('searchInput'); // Certifique-se que esta linha está no topo, junto com as outras const
-    // if (searchInput) searchInput.addEventListener('input', applyFilters);
-
-
-    exportButton.addEventListener('click', () => {
-        if (currentlyDisplayedData.length > 0) {
-            exportTableToExcel(currentlyDisplayedData, 'Equipamentos_Calibracao_Filtrados');
-            outputDiv.textContent = 'Exportando dados para Excel...';
-        } else {
-            outputDiv.textContent = 'Não há dados para exportar. Por favor, carregue e processe os arquivos primeiro.';
-        }
-    });
-
-    processButton.addEventListener('click', async () => {
-        const files = fileInput.files;
-        if (files.length === 0) {
-            outputDiv.textContent = 'Por favor, selecione pelo menos um arquivo Excel.';
-            return;
-        }
-
-        outputDiv.textContent = 'Processando arquivos...';
-        allEquipmentData = [];
-        originalEquipmentData = []; // NOVO: Limpar também os dados originais
-        allCalibrationData = [];
-        equipmentTableBody.innerHTML = '';
-        sectorFilter.innerHTML = '<option value="">Todos os Setores</option>';
-        calibrationStatusFilter.value = "";
-        equipmentCountSpan.textContent = `Total: 0 equipamentos`;
-        currentlyDisplayedData = [];
-        // searchInput.value = ''; // Certifique-se que searchInput está declarado
-
-        try {
-            const fileResults = await Promise.all(Array.from(files).map(readFile));
-
-            let tempEquipmentData = [];
-            let tempCalibrationData = [];
-
-            fileResults.forEach(result => {
-                const { fileName, workbook } = result;
-
-                if (workbook.SheetNames.includes('Equipamentos')) {
-                    const parsedEquipments = parseEquipmentSheet(workbook.Sheets['Equipamentos']);
-                    tempEquipmentData = tempEquipmentData.concat(parsedEquipments);
-                    outputDiv.textContent += `\n- Arquivo de Equipamentos (${fileName}) carregado. Total: ${parsedEquipments.length} registros.`;
-                }
-
-                workbook.SheetNames.forEach(sheetName => {
-                    const parsedCalibrations = parseCalibrationSheet(workbook.Sheets[sheetName]);
-                    if (parsedCalibrations.length > 0) {
-                        tempCalibrationData = tempCalibrationData.concat(parsedCalibrations);
-                        outputDiv.textContent += `\n- Arquivo de Calibração (${fileName} - Planilha: ${sheetName}) carregado. Total: ${parsedCalibrations.length} registros.`;
-                    }
-                });
-            });
-            
-            // NOVO: Armazena a lista de equipamentos originais ANTES de injetar as divergências
-            originalEquipmentData = tempEquipmentData;
-
-            const { equipmentData: processedEquipmentData, calibratedCount, notCalibratedCount, divergentCalibrations: newDivergentCalibrations } = crossReferenceData(originalEquipmentData, tempCalibrationData, outputDiv); // Passa originalEquipmentData para o cruzamento
-            
-            // allEquipmentData agora contém originais + divergentes
-            allEquipmentData = processedEquipmentData.concat(newDivergentCalibrations.map(cal => ({
-                TAG: cal.TAG || 'N/A',
-                Equipamento: cal.EQUIPAMENTO || 'N/A',
-                Modelo: cal.MODELO || 'N/A',
-                Fabricante: cal.MARCA || 'N/A',
-                Setor: cal.SETOR || 'N/A',
-                'Nº Série': cal.SN || 'N/A',
-                Patrimônio: cal.PATRIM || 'N/A',
-                calibrationStatus: 'Não Cadastrado (DHME)',
-                calibrations: [cal],
-                nextCalibrationDate: cal['DATA VAL'] || 'N/A'
-            })));
-
-
-            applyFilters(); 
-            populateSectorFilter(originalEquipmentData, sectorFilter); // NOVO: Passa APENAS os dados originais para popular o filtro
-            outputDiv.textContent += '\nProcessamento concluído. Verifique a tabela abaixo.';
-
-            if (newDivergentCalibrations.length > 0) {
-                outputDiv.textContent += `\n\n--- Calibrações com Divergência (${newDivergentCalibrations.length}) listadas na tabela principal com status "Não Cadastrado (DHME)". ---`;
-            } else {
-                outputDiv.textContent += `\n\nNão foram encontradas calibrações sem equipamento correspondente.`;
-            }
-
-        } catch (error) {
-            outputDiv.textContent = `Ocorreu um erro geral no processamento: ${error.message}`;
-            console.error("Erro no processamento:", error);
-        }
-    });
+    // ... Resto do código da função processButton.addEventListener('click', async () => { ...
+    // E aqui, dentro do try{} do processButton.addEventListener:
+    // searchInput.value = ''; // <--- Descomente esta linha para limpar a busca ao processar novos arquivos
+    // ...
 });
