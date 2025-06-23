@@ -9,11 +9,16 @@ export const renderEquipmentTable = (dataToRender, equipmentTableBody, equipment
 
     dataToRender.forEach(equipment => {
         const row = equipmentTableBody.insertRow();
+        
+        // Adiciona classe CSS para destaque baseado no novo status
         if (equipment.calibrationStatus === 'Não Calibrado') {
             row.classList.add('not-calibrated');
         } else if (equipment.calibrationStatus === 'Calibrado') {
             row.classList.add('calibrated');
+        } else if (equipment.calibrationStatus === 'Não Cadastrado (DHME)') { // NOVO STATUS
+            row.classList.add('divergent-calibrated'); // Nova classe CSS para divergências
         }
+
 
         row.insertCell().textContent = equipment.TAG || '';
         row.insertCell().textContent = equipment.Equipamento || '';
@@ -25,7 +30,8 @@ export const renderEquipmentTable = (dataToRender, equipmentTableBody, equipment
 
         const statusCell = row.insertCell();
         statusCell.textContent = equipment.calibrationStatus || 'Desconhecido';
-        if (equipment.calibrationStatus === 'Calibrado' && equipment.calibrations && equipment.calibrations.length > 0) {
+        // Tooltip para calibrados e também para os "Não Cadastrados (DHME)" que terão detalhes de calibração
+        if (equipment.calibrations && equipment.calibrations.length > 0 && equipment.calibrationStatus !== 'Não Calibrado') {
              statusCell.title = equipment.calibrations.map(cal => `Data Cal: ${cal['DATA CAL'] || 'N/A'}, Vencimento: ${cal['DATA VAL'] || 'N/A'}, Tipo: ${cal['TIPO SERVIÇO'] || 'N/A'}`).join('\n');
         }
 
@@ -53,23 +59,20 @@ export const populateSectorFilter = (equipmentData, sectorFilter) => {
     });
 };
 
-// NOVA FUNÇÃO: Renderizar a tabela de calibrações divergentes
-export const renderDivergentCalibrationsTable = (divergentData, divergentTableBody) => {
-    divergentTableBody.innerHTML = ''; // Limpa a tabela
-
-    if (!divergentData || divergentData.length === 0) {
-        divergentTableBody.innerHTML = '<tr><td colspan="6">Nenhuma calibração com divergência encontrada.</td></tr>';
-        return;
-    }
-
-    divergentData.forEach(cal => {
-        const row = divergentTableBody.insertRow();
-        row.insertCell().textContent = cal.SN || '';
-        row.insertCell().textContent = cal.EQUIPAMENTO || '';
-        row.insertCell().textContent = cal.MARCA || '';
-        row.insertCell().textContent = cal.MODELO || '';
-        row.insertCell().textContent = cal['DATA VAL'] || '';
-        row.insertCell().textContent = cal['TIPO SERVIÇO'] || '';
-        // Adicione mais células conforme as colunas que você quer exibir da planilha DHME
-    });
-};
+// REMOVER ESTA FUNÇÃO se você removeu a tabela do HTML
+// export const renderDivergentCalibrationsTable = (divergentData, divergentTableBody) => {
+//     divergentTableBody.innerHTML = '';
+//     if (!divergentData || divergentData.length === 0) {
+//         divergentTableBody.innerHTML = '<tr><td colspan="6">Nenhuma calibração com divergência encontrada.</td></tr>';
+//         return;
+//     }
+//     divergentData.forEach(cal => {
+//         const row = divergentTableBody.insertRow();
+//         row.insertCell().textContent = cal.SN || '';
+//         row.insertCell().textContent = cal.EQUIPAMENTO || '';
+//         row.insertCell().textContent = cal.MARCA || '';
+//         row.insertCell().textContent = cal.MODELO || '';
+//         row.insertCell().textContent = cal['DATA VAL'] || '';
+//         row.insertCell().textContent = cal['TIPO SERVIÇO'] || '';
+//     });
+// };
