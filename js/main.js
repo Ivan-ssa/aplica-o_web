@@ -1,11 +1,11 @@
 // js/main.js
 import { readFile, parseEquipmentSheet, parseCalibrationSheet } from './excelReader.js';
 import { crossReferenceData } from './dataProcessor.js';
-import { renderEquipmentTable, populateSectorFilter } from './uiRenderer.js';
-import { exportTableToExcel } from './excelExporter.js';
+// NOVO: Importar a nova função de renderização de divergências
+import { renderEquipmentTable, populateSectorFilter, renderDivergentCalibrationsTable } from './uiRenderer.js'; 
+import { exportTableToExcel } from './excelExporter.js'; 
 
 document.addEventListener('DOMContentLoaded', () => {
-    // TODAS AS REFERÊNCIAS A ELEMENTOS HTML DEVEM ESTAR AQUI DENTRO
     const fileInput = document.getElementById('excelFileInput');
     const processButton = document.getElementById('processButton');
     const outputDiv = document.getElementById('output');
@@ -13,24 +13,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const sectorFilter = document.getElementById('sectorFilter');
     const calibrationStatusFilter = document.getElementById('calibrationStatusFilter');
     const equipmentCountSpan = document.getElementById('equipmentCount');
-    const exportButton = document.getElementById('exportButton'); // Garanta que este ID está no HTML
-
-    // Verifica se algum elemento é null antes de adicionar listeners
-    // Isso é uma verificação de segurança extra para ajudar a depurar
-    if (!fileInput) console.error("Elemento com ID 'excelFileInput' não encontrado!");
-    if (!processButton) console.error("Elemento com ID 'processButton' não encontrado!");
-    if (!outputDiv) console.error("Elemento com ID 'output' não encontrado!");
-    if (!equipmentTableBody) console.error("Elemento com seletor '#equipmentTable tbody' não encontrado!");
-    if (!sectorFilter) console.error("Elemento com ID 'sectorFilter' não encontrado!");
-    if (!calibrationStatusFilter) console.error("Elemento com ID 'calibrationStatusFilter' não encontrado!");
-    if (!equipmentCountSpan) console.error("Elemento com ID 'equipmentCount' não encontrado!");
-    if (!exportButton) console.error("Elemento com ID 'exportButton' não encontrado!");
-
+    const exportButton = document.getElementById('exportButton');
+    // NOVO: Referência à tabela de divergências
+    const divergentCalibrationsTableBody = document.querySelector('#divergentCalibrationsTable tbody');
 
     let allEquipmentData = [];
-    let allCalibrationData = [];
-    let currentlyDisplayedData = [];
-    let divergentCalibrations = [];
+    let allCalibrationData = []; 
+    let currentlyDisplayedData = []; 
+    let divergentCalibrations = []; 
 
     const applyFilters = () => {
         let filteredData = allEquipmentData;
@@ -43,26 +33,21 @@ document.addEventListener('DOMContentLoaded', () => {
         if (selectedStatus !== "") {
             filteredData = filteredData.filter(eq => eq.calibrationStatus === selectedStatus);
         }
-        currentlyDisplayedData = filteredData;
+        currentlyDisplayedData = filteredData; 
         renderEquipmentTable(filteredData, equipmentTableBody, equipmentCountSpan);
     };
 
-    // Listeners para os filtros (dentro de DOMContentLoaded)
-    if (sectorFilter) sectorFilter.addEventListener('change', applyFilters);
-    if (calibrationStatusFilter) calibrationStatusFilter.addEventListener('change', applyFilters);
+    sectorFilter.addEventListener('change', applyFilters);
+    calibrationStatusFilter.addEventListener('change', applyFilters);
 
-    // Listener para o botão de exportar (dentro de DOMContentLoaded)
-    if (exportButton) { // Verifica se o botão existe antes de adicionar o listener
-        exportButton.addEventListener('click', () => {
-            if (currentlyDisplayedData.length > 0) {
-                exportTableToExcel(currentlyDisplayedData, 'Equipamentos_Calibracao_Filtrados');
-                outputDiv.textContent = 'Exportando dados para Excel...';
-            } else {
-                outputDiv.textContent = 'Não há dados para exportar. Por favor, carregue e processe os arquivos primeiro.';
-            }
-        });
-    }
-
+    exportButton.addEventListener('click', () => {
+        if (currentlyDisplayedData.length > 0) {
+            exportTableToExcel(currentlyDisplayedData, 'Equipamentos_Calibracao_Filtrados');
+            outputDiv.textContent = 'Exportando dados para Excel...';
+        } else {
+            outputDiv.textContent = 'Não há dados para exportar. Por favor, carregue e processe os arquivos primeiro.';
+        }
+    });
 
     processButton.addEventListener('click', async () => {
         const files = fileInput.files;
@@ -79,7 +64,8 @@ document.addEventListener('DOMContentLoaded', () => {
         calibrationStatusFilter.value = "";
         equipmentCountSpan.textContent = `Total: 0 equipamentos`;
         currentlyDisplayedData = [];
-        divergentCalibrations = [];
+        divergentCalibrations = []; 
+        divergentCalibrationsTableBody.innerHTML = '<tr><td colspan="6">Nenhum dado processado.</td></tr>'; // Limpar tabela de divergências
 
         try {
             const fileResults = await Promise.all(Array.from(files).map(readFile));
@@ -104,17 +90,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const { equipmentData, calibratedCount, notCalibratedCount, divergentCalibrations: newDivergentCalibrations } = crossReferenceData(allEquipmentData, allCalibrationData, outputDiv);
             allEquipmentData = equipmentData;
-            divergentCalibrations = newDivergentCalibrations;
+            divergentCalibrations = newDivergentCalibrations; 
 
             applyFilters();
             populateSectorFilter(allEquipmentData, sectorFilter);
             outputDiv.textContent += '\nProcessamento concluído. Verifique a tabela abaixo.';
 
+            // NOVO: Renderizar tabela de divergências
+            renderDivergentCalibrationsTable(divergentCalibrations, divergentCalibrationsTableBody);
+            
+            // Remover mensagem de divergência da área de output, se a tabela for a principal exibição
+            // Se quiser manter, remova as próximas linhas:
             if (divergentCalibrations.length > 0) {
-                outputDiv.textContent += `\n\n--- Divergências Encontradas (${divergentCalibrations.length}) ---`;
-                divergentCalibrations.forEach(divCal => {
-                    outputDiv.textContent += `\n- SN: ${divCal.SN || 'N/A'}, Equipamento Calibração: ${divCal.EQUIPAMENTO || 'N/A'}, Data Val: ${divCal['DATA VAL'] || 'N/A'}`;
-                });
+                outputDiv.textContent += `\n\n--- Calibrações com Divergência (${divergentCalibrations.length}) listadas na tabela abaixo. ---`;
             } else {
                 outputDiv.textContent += `\n\nNão foram encontradas calibrações sem equipamento correspondente.`;
             }
