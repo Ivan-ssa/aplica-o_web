@@ -13,46 +13,45 @@ document.addEventListener('DOMContentLoaded', () => {
     const calibrationStatusFilter = document.getElementById('calibrationStatusFilter');
     const equipmentCountSpan = document.getElementById('equipmentCount');
     const exportButton = document.getElementById('exportButton');
-    const searchInput = document.getElementById('searchInput'); // NOVO: Referência ao campo de busca
 
-    let allEquipmentData = [];
+    let allEquipmentData = []; // Contém equipamentos originais + divergentes injetados
+    let originalEquipmentData = []; // NOVO: Para armazenar apenas os equipamentos originais
     let allCalibrationData = []; 
     let currentlyDisplayedData = []; 
-    let divergentCalibrations = []; 
 
     const applyFilters = () => {
         let filteredData = allEquipmentData;
         const selectedSector = sectorFilter.value;
         const selectedStatus = calibrationStatusFilter.value;
-        const searchTerm = searchInput.value.toLowerCase().trim(); // NOVO: Termo de busca
+        const searchTerm = searchInput.value.trim().toLowerCase();
 
-        // Aplicar filtro por setor
         if (selectedSector !== "") {
             filteredData = filteredData.filter(eq => eq.Setor && eq.Setor.trim() === selectedSector);
         }
 
-        // Aplicar filtro por status de calibração
         if (selectedStatus !== "") {
             filteredData = filteredData.filter(eq => eq.calibrationStatus === selectedStatus);
         }
 
-        // NOVO: Aplicar filtro de busca por SN/Patrimônio
         if (searchTerm !== "") {
             filteredData = filteredData.filter(eq => {
-                const serial = (eq['Nº Série'] ? String(eq['Nº Série']).toLowerCase().replace(/^0+/, '') : '');
-                const patrimonio = (eq.Patrimônio ? String(eq.Patrimônio).toLowerCase() : '');
-                // Compara o termo de busca com o SN (normalizado) ou Patrimônio
-                return serial.includes(searchTerm) || patrimonio.includes(searchTerm);
+                const tag = String(eq.TAG || '').toLowerCase();
+                const serial = String(eq['Nº Série'] || '').replace(/^0+/, '').toLowerCase();
+                const patrimonio = String(eq.Patrimônio || '').toLowerCase();
+                return tag.includes(searchTerm) || serial.includes(searchTerm) || patrimonio.includes(searchTerm);
             });
         }
 
-        currentlyDisplayedData = filteredData; 
+        currentlyDisplayedData = filteredData;
         renderEquipmentTable(filteredData, equipmentTableBody, equipmentCountSpan);
     };
 
     sectorFilter.addEventListener('change', applyFilters);
     calibrationStatusFilter.addEventListener('change', applyFilters);
-    searchInput.addEventListener('input', applyFilters); // NOVO: Filtra enquanto o usuário digita
+    // searchInput precisa ser declarado no escopo
+    // const searchInput = document.getElementById('searchInput'); // Certifique-se que esta linha está no topo, junto com as outras const
+    // if (searchInput) searchInput.addEventListener('input', applyFilters);
+
 
     exportButton.addEventListener('click', () => {
         if (currentlyDisplayedData.length > 0) {
@@ -72,14 +71,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         outputDiv.textContent = 'Processando arquivos...';
         allEquipmentData = [];
+        originalEquipmentData = []; // NOVO: Limpar também os dados originais
         allCalibrationData = [];
         equipmentTableBody.innerHTML = '';
         sectorFilter.innerHTML = '<option value="">Todos os Setores</option>';
         calibrationStatusFilter.value = "";
-        searchInput.value = ""; // NOVO: Limpar campo de busca ao processar novos arquivos
         equipmentCountSpan.textContent = `Total: 0 equipamentos`;
         currentlyDisplayedData = [];
-        divergentCalibrations = []; 
+        // searchInput.value = ''; // Certifique-se que searchInput está declarado
 
         try {
             const fileResults = await Promise.all(Array.from(files).map(readFile));
@@ -104,24 +103,29 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 });
             });
-
-            const { equipmentData: processedEquipmentData, calibratedCount, notCalibratedCount, divergentCalibrations: newDivergentCalibrations } = crossReferenceData(tempEquipmentData, tempCalibrationData, outputDiv);
             
+            // NOVO: Armazena a lista de equipamentos originais ANTES de injetar as divergências
+            originalEquipmentData = tempEquipmentData;
+
+            const { equipmentData: processedEquipmentData, calibratedCount, notCalibratedCount, divergentCalibrations: newDivergentCalibrations } = crossReferenceData(originalEquipmentData, tempCalibrationData, outputDiv); // Passa originalEquipmentData para o cruzamento
+            
+            // allEquipmentData agora contém originais + divergentes
             allEquipmentData = processedEquipmentData.concat(newDivergentCalibrations.map(cal => ({
-                TAG: cal.TAG || 'N/A', 
+                TAG: cal.TAG || 'N/A',
                 Equipamento: cal.EQUIPAMENTO || 'N/A',
                 Modelo: cal.MODELO || 'N/A',
-                Fabricante: cal.MARCA || 'N/A', 
+                Fabricante: cal.MARCA || 'N/A',
                 Setor: cal.SETOR || 'N/A',
-                'Nº Série': cal.SN || 'N/A', 
+                'Nº Série': cal.SN || 'N/A',
                 Patrimônio: cal.PATRIM || 'N/A',
                 calibrationStatus: 'Não Cadastrado (DHME)',
                 calibrations: [cal],
                 nextCalibrationDate: cal['DATA VAL'] || 'N/A'
             })));
 
+
             applyFilters(); 
-            populateSectorFilter(allEquipmentData, sectorFilter);
+            populateSectorFilter(originalEquipmentData, sectorFilter); // NOVO: Passa APENAS os dados originais para popular o filtro
             outputDiv.textContent += '\nProcessamento concluído. Verifique a tabela abaixo.';
 
             if (newDivergentCalibrations.length > 0) {
