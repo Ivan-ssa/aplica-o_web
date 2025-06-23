@@ -2,6 +2,7 @@
 import { readFile, parseEquipmentSheet, parseCalibrationSheet } from './excelReader.js';
 import { crossReferenceData } from './dataProcessor.js';
 import { renderEquipmentTable, populateSectorFilter } from './uiRenderer.js';
+import { exportTableToExcel } from './excelExporter.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     const fileInput = document.getElementById('excelFileInput');
@@ -11,9 +12,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const sectorFilter = document.getElementById('sectorFilter');
     const calibrationStatusFilter = document.getElementById('calibrationStatusFilter');
     const equipmentCountSpan = document.getElementById('equipmentCount');
+    const exportButton = document.getElementById('exportButton');
 
     let allEquipmentData = [];
-    let allCalibrationData = [];
+    let allCalibrationData = []; // Manter para caso precise de algo com ela bruta
+    let currentlyDisplayedData = [];
+    let divergentCalibrations = []; // NOVO: Para armazenar as divergências
 
     const applyFilters = () => {
         let filteredData = allEquipmentData;
@@ -26,11 +30,21 @@ document.addEventListener('DOMContentLoaded', () => {
         if (selectedStatus !== "") {
             filteredData = filteredData.filter(eq => eq.calibrationStatus === selectedStatus);
         }
+        currentlyDisplayedData = filteredData;
         renderEquipmentTable(filteredData, equipmentTableBody, equipmentCountSpan);
     };
 
     sectorFilter.addEventListener('change', applyFilters);
     calibrationStatusFilter.addEventListener('change', applyFilters);
+
+    exportButton.addEventListener('click', () => {
+        if (currentlyDisplayedData.length > 0) {
+            exportTableToExcel(currentlyDisplayedData, 'Equipamentos_Calibracao_Filtrados');
+            outputDiv.textContent = 'Exportando dados para Excel...';
+        } else {
+            outputDiv.textContent = 'Não há dados para exportar. Por favor, carregue e processe os arquivos primeiro.';
+        }
+    });
 
     processButton.addEventListener('click', async () => {
         const files = fileInput.files;
@@ -46,6 +60,8 @@ document.addEventListener('DOMContentLoaded', () => {
         sectorFilter.innerHTML = '<option value="">Todos os Setores</option>';
         calibrationStatusFilter.value = "";
         equipmentCountSpan.textContent = `Total: 0 equipamentos`;
+        currentlyDisplayedData = [];
+        divergentCalibrations = []; // NOVO: Resetar também as divergências
 
         try {
             const fileResults = await Promise.all(Array.from(files).map(readFile));
@@ -53,14 +69,12 @@ document.addEventListener('DOMContentLoaded', () => {
             fileResults.forEach(result => {
                 const { fileName, workbook } = result;
 
-                // Processa planilha de Equipamentos
                 if (workbook.SheetNames.includes('Equipamentos')) {
                     const parsedEquipments = parseEquipmentSheet(workbook.Sheets['Equipamentos']);
                     allEquipmentData = allEquipmentData.concat(parsedEquipments);
                     outputDiv.textContent += `\n- Arquivo de Equipamentos (${fileName}) carregado. Total: ${parsedEquipments.length} registros.`;
                 }
 
-                // Processa planilhas de Calibração
                 workbook.SheetNames.forEach(sheetName => {
                     const parsedCalibrations = parseCalibrationSheet(workbook.Sheets[sheetName]);
                     if (parsedCalibrations.length > 0) {
@@ -70,15 +84,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             });
 
-            // Cruza os dados
-            const { equipmentData, calibratedCount, notCalibratedCount } = crossReferenceData(allEquipmentData, allCalibrationData, outputDiv);
-            allEquipmentData = equipmentData; // Atualiza a variável global com os dados cruzados
+            // NOVO: Captura as divergências
+            const { equipmentData, calibratedCount, notCalibratedCount, divergentCalibrations: newDivergentCalibrations } = crossReferenceData(allEquipmentData, allCalibrationData, outputDiv);
+            allEquipmentData = equipmentData;
+            divergentCalibrations = newDivergentCalibrations; // Atualiza a variável global
 
-            // Renderiza e popula UI
-            renderEquipmentTable(allEquipmentData, equipmentTableBody, equipmentCountSpan);
+            applyFilters();
             populateSectorFilter(allEquipmentData, sectorFilter);
-            applyFilters(); // Para garantir que a contagem e os filtros iniciais estejam corretos
             outputDiv.textContent += '\nProcessamento concluído. Verifique a tabela abaixo.';
+
+            // NOVO: Mensagem de divergências (pode ser melhorado com uma tabela dedicada)
+            if (divergentCalibrations.length > 0) {
+                outputDiv.textContent += `\n\n--- Divergências Encontradas (${divergentCalibrations.length}) ---`;
+                divergentCalibrations.forEach(divCal => {
+                    outputDiv.textContent += `\n- SN: ${divCal.SN || 'N/A'}, Equipamento Calibração: ${divCal.EQUIPAMENTO || 'N/A'}, Data Val: ${divCal['DATA VAL'] || 'N/A'}`;
+                });
+            } else {
+                outputDiv.textContent += `\n\nNão foram encontradas calibrações sem equipamento correspondente.`;
+            }
 
         } catch (error) {
             outputDiv.textContent = `Ocorreu um erro geral no processamento: ${error.message}`;
