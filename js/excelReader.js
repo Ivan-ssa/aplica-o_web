@@ -84,12 +84,14 @@ export const parseCalibrationSheet = (worksheet) => {
     if (jsonDataRaw.length === 0) return [];
 
     const headers = jsonDataRaw[0].map(h => String(h).trim());
+    console.log('CABEÇALHOS LIDOS DA PLANILHA DE CALIBRAÇÃO:', headers);
 
     // Encontrar o nome correto das colunas usando os mapeamentos
     const snHeader = findHeaderName(headers, snColumnNames);
+    
     const dataValHeader = findHeaderName(headers, dataValColumnNames);
     const dataCalHeader = findHeaderName(headers, dataCalColumnNames);
-
+    console.log('SN_HEADER ENCONTRADO PELA LÓGICA:', snHeader);
     const equipamentoHeader = findHeaderName(headers, equipamentoColumnNames);
     const fabricanteHeader = findHeaderName(headers, fabricanteColumnNames);
     const modeloHeader = findHeaderName(headers, modeloColumnNames);
