@@ -1,7 +1,7 @@
 // js/main.js
 import { readFile, parseEquipmentSheet, parseCalibrationSheet } from './excelReader.js';
 import { crossReferenceData } from './dataProcessor.js';
-import { renderEquipmentTable, populateSectorFilter } from './uiRenderer.js';
+import { renderEquipmentTable, populateSectorFilter } from './uiREnderer.js';
 import { exportTableToExcel } from './excelExporter.js';
 
 document.addEventListener('DOMContentLoaded', () => {
