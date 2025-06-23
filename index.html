@@ -31,6 +31,7 @@
                 <option value="">Todos os Status</option>
                 <option value="Calibrado">Calibrado</option>
                 <option value="Não Calibrado">Não Calibrado</option>
+                <option value="Não Cadastrado (DHME)">Não Cadastrado (DHME)</option>
             </select>
             <span id="equipmentCount">Total: 0 equipamentos</span>
         </div>
@@ -57,24 +58,6 @@
     </div>
 
     ---
-
-    <h2>Calibrações com Divergência (SN Não Encontrado em Equipamentos)</h2>
-    <div id="divergentCalibrationsContainer">
-        <table id="divergentCalibrationsTable">
-            <thead>
-                <tr>
-                    <th>SN (DHME)</th>
-                    <th>Equipamento (DHME)</th>
-                    <th>Marca</th>
-                    <th>Modelo</th>
-                    <th>Data Validade</th>
-                    <th>Tipo Serviço</th>
-                    </tr>
-            </thead>
-            <tbody>
-                </tbody>
-        </table>
-    </div>
 
     <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
 
