@@ -26,7 +26,6 @@ export const renderEquipmentTable = (dataToRender, equipmentTableBody, equipment
         const statusCell = row.insertCell();
         statusCell.textContent = equipment.calibrationStatus || 'Desconhecido';
         if (equipment.calibrationStatus === 'Calibrado' && equipment.calibrations && equipment.calibrations.length > 0) {
-             // O tooltip agora mostra as calibrações formatadas.
              statusCell.title = equipment.calibrations.map(cal => `Data Cal: ${cal['DATA CAL'] || 'N/A'}, Vencimento: ${cal['DATA VAL'] || 'N/A'}, Tipo: ${cal['TIPO SERVIÇO'] || 'N/A'}`).join('\n');
         }
 
