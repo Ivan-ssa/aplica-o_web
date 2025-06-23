@@ -1,9 +1,8 @@
 // js/main.js
 import { readFile, parseEquipmentSheet, parseCalibrationSheet } from './excelReader.js';
 import { crossReferenceData } from './dataProcessor.js';
-// MUDANÇA AQUI: REMOVER 'renderDivergentCalibrationsTable'
-import { renderEquipmentTable, populateSectorFilter } from './uiRenderer.js'; 
-import { exportTableToExcel } from './excelExporter.js'; 
+import { renderEquipmentTable, populateSectorFilter } from './uiRenderer.js';
+import { exportTableToExcel } from './excelExporter.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     const fileInput = document.getElementById('excelFileInput');
@@ -14,6 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const calibrationStatusFilter = document.getElementById('calibrationStatusFilter');
     const equipmentCountSpan = document.getElementById('equipmentCount');
     const exportButton = document.getElementById('exportButton');
+    const searchInput = document.getElementById('searchInput'); // NOVO: Referência ao campo de busca
 
     let allEquipmentData = [];
     let allCalibrationData = []; 
@@ -24,19 +24,35 @@ document.addEventListener('DOMContentLoaded', () => {
         let filteredData = allEquipmentData;
         const selectedSector = sectorFilter.value;
         const selectedStatus = calibrationStatusFilter.value;
+        const searchTerm = searchInput.value.toLowerCase().trim(); // NOVO: Termo de busca
 
+        // Aplicar filtro por setor
         if (selectedSector !== "") {
             filteredData = filteredData.filter(eq => eq.Setor && eq.Setor.trim() === selectedSector);
         }
+
+        // Aplicar filtro por status de calibração
         if (selectedStatus !== "") {
             filteredData = filteredData.filter(eq => eq.calibrationStatus === selectedStatus);
         }
+
+        // NOVO: Aplicar filtro de busca por SN/Patrimônio
+        if (searchTerm !== "") {
+            filteredData = filteredData.filter(eq => {
+                const serial = (eq['Nº Série'] ? String(eq['Nº Série']).toLowerCase().replace(/^0+/, '') : '');
+                const patrimonio = (eq.Patrimônio ? String(eq.Patrimônio).toLowerCase() : '');
+                // Compara o termo de busca com o SN (normalizado) ou Patrimônio
+                return serial.includes(searchTerm) || patrimonio.includes(searchTerm);
+            });
+        }
+
         currentlyDisplayedData = filteredData; 
         renderEquipmentTable(filteredData, equipmentTableBody, equipmentCountSpan);
     };
 
     sectorFilter.addEventListener('change', applyFilters);
     calibrationStatusFilter.addEventListener('change', applyFilters);
+    searchInput.addEventListener('input', applyFilters); // NOVO: Filtra enquanto o usuário digita
 
     exportButton.addEventListener('click', () => {
         if (currentlyDisplayedData.length > 0) {
@@ -60,6 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
         equipmentTableBody.innerHTML = '';
         sectorFilter.innerHTML = '<option value="">Todos os Setores</option>';
         calibrationStatusFilter.value = "";
+        searchInput.value = ""; // NOVO: Limpar campo de busca ao processar novos arquivos
         equipmentCountSpan.textContent = `Total: 0 equipamentos`;
         currentlyDisplayedData = [];
         divergentCalibrations = []; 
@@ -91,24 +108,22 @@ document.addEventListener('DOMContentLoaded', () => {
             const { equipmentData: processedEquipmentData, calibratedCount, notCalibratedCount, divergentCalibrations: newDivergentCalibrations } = crossReferenceData(tempEquipmentData, tempCalibrationData, outputDiv);
             
             allEquipmentData = processedEquipmentData.concat(newDivergentCalibrations.map(cal => ({
-                TAG: cal.TAG || 'N/A', // Pode ser que DHME não tenha TAG
+                TAG: cal.TAG || 'N/A', 
                 Equipamento: cal.EQUIPAMENTO || 'N/A',
                 Modelo: cal.MODELO || 'N/A',
-                Fabricante: cal.MARCA || 'N/A',
+                Fabricante: cal.MARCA || 'N/A', 
                 Setor: cal.SETOR || 'N/A',
-                'Nº Série': cal.SN || 'N/A',
+                'Nº Série': cal.SN || 'N/A', 
                 Patrimônio: cal.PATRIM || 'N/A',
                 calibrationStatus: 'Não Cadastrado (DHME)',
                 calibrations: [cal],
                 nextCalibrationDate: cal['DATA VAL'] || 'N/A'
             })));
 
-
-            applyFilters();
+            applyFilters(); 
             populateSectorFilter(allEquipmentData, sectorFilter);
             outputDiv.textContent += '\nProcessamento concluído. Verifique a tabela abaixo.';
 
-            // Mensagem atualizada sobre divergências
             if (newDivergentCalibrations.length > 0) {
                 outputDiv.textContent += `\n\n--- Calibrações com Divergência (${newDivergentCalibrations.length}) listadas na tabela principal com status "Não Cadastrado (DHME)". ---`;
             } else {
