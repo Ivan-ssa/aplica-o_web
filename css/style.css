@@ -52,7 +52,7 @@ th {
     color: #495057;
 }
 tr:nth-child(even) {
-    background-color: #f8f9fa; /* Mantido para linhas não destacadas */
+    background-color: #f8f9fa;
 }
 tr:hover {
     background-color: #e2e6ea;
@@ -75,7 +75,7 @@ tr:hover {
     align-items: center;
     gap: 15px;
 }
-#sectorFilter, #calibrationStatusFilter {
+#sectorFilter, #calibrationStatusFilter, #searchInput { /* NOVO: Adicionado #searchInput aqui */
     padding: 10px;
     border: 1px solid #ced4da;
     border-radius: 5px;
@@ -100,13 +100,10 @@ tr.calibrated {
     background-color: #ccffcc;
     border-left: 5px solid #5cb85c;
 }
-/* NOVO ESTILO PARA AS DIVERGÊNCIAS */
 tr.divergent-calibrated {
-    background-color: #fffacd; /* Amarelo claro, como a calibração vencida */
-    border-left: 5px solid #ffcc00; /* Borda amarela mais forte */
+    background-color: #fffacd;
+    border-left: 5px solid #ffcc00;
 }
-
-/* Estilo para calibração vencida (se você adicionar a lógica no JS) */
 tr.expired-calibration {
     background-color: #fff3cd;
     border-left: 5px solid #ffc107;
