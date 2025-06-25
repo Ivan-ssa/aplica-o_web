@@ -38,17 +38,19 @@ export const crossReferenceData = (equipmentData, calibrationData, outputDiv) =>
                                 if (!latestDueDateObj || currentParsedDate > latestDueDateObj) {
                                     latestDueDateObj = currentParsedDate;
                                     latestDueDateFormatted = currentDateValString;
+                                    // AQUI: Usa a _source que já vem de main.js
                                     calibrationSource = cal._source || 'Desconhecida'; 
                                 }
                             }
                         }
                     } else if (latestDueDateFormatted === 'N/A' && cal._source) { 
+                        // Se não tem data de vencimento, mas tem source, usa essa source
                         calibrationSource = cal._source;
                     }
                 });
 
-                // AGORA USA 'DHMED' ou 'Sciencetech' EXATAMENTE
-                equipment.calibrationStatus = `Calibrado (${calibrationSource === 'DHME' ? 'DHMED' : calibrationSource})`; // Ajusta DHME para DHMED
+                // ATRIBUIÇÃO DO STATUS: Usa a calibrationSource diretamente
+                equipment.calibrationStatus = `Calibrado (${calibrationSource})`;
                 equipment.calibrations = matchingCalibrations; 
                 equipment.nextCalibrationDate = latestDueDateFormatted;
                 calibratedCount++;
