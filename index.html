@@ -29,18 +29,16 @@
             <label for="calibrationStatusFilter">Filtrar por Status de Calibração:</label>
             <select id="calibrationStatusFilter">
                 <option value="">Todos os Status</option>
-                <option value="">Todos os Status</option>
                 <option value="Calibrado (DHME)">Calibrado (DHME)</option>
                 <option value="Calibrado (Sciencetech)">Calibrado (Sciencetech)</option>
                 <option value="Não Calibrado">Não Calibrado</option>
                 <option value="Não Cadastrado (DHME)">Não Cadastrado (DHME)</option>
-                <option value="Não Cadastrado (Sciencetech)">Não Cadastrado (Scienc
-    
+                <option value="Não Cadastrado (Sciencetech)">Não Cadastrado (Sciencetech)</option>
             </select>
-            <label for="searchInput">Buscar SN/Patrimônio:</label>
-            <input type="text" id="searchInput" placeholder="Digite SN ou Patrimônio">
-           
             <span id="equipmentCount">Total: 0 equipamentos</span>
+
+            <label for="searchInput">Buscar por Nº Série ou Patrimônio:</label>
+            <input type="text" id="searchInput" placeholder="Digite SN, Patrimônio ou TAG...">
         </div>
 
         <button id="exportButton" style="margin-bottom: 15px;">Exportar Tabela para Excel</button>
@@ -63,8 +61,6 @@
                 </tbody>
         </table>
     </div>
-
-    ---
 
     <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
 
