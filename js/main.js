@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const searchInput = document.getElementById('searchInput'); // Elemento do buscador
 
     let allEquipmentData = []; // Contém equipamentos originais + divergentes injetados
-    let originalEquipmentData = []; // Para armazenar apenas os equipamentos originais
+    let originalEquipmentData = []; // Para armazenar apenas os equipamentos originais (para o filtro de setor)
     let allCalibrationData = []; // Calibrações lidas de TODAS as fontes
     let currentlyDisplayedData = []; // Dados atualmente visíveis na tabela (após filtros e busca)
 
@@ -81,4 +81,22 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error("Elemento com ID 'exportButton' não encontrado! Verifique o index.html."); // Ajuda a depurar
     }
 
-    // Listener para o botão de processar
+    // Listener para o botão de processar arquivos
+    processButton.addEventListener('click', async () => {
+        const files = fileInput.files;
+        if (files.length === 0) {
+            outputDiv.textContent = 'Por favor, selecione pelo menos um arquivo Excel.';
+            return;
+        }
+
+        // Resetar variáveis e UI antes de processar novos arquivos
+        outputDiv.textContent = 'Processando arquivos...';
+        allEquipmentData = [];
+        originalEquipmentData = [];
+        allCalibrationData = [];
+        equipmentTableBody.innerHTML = '';
+        sectorFilter.innerHTML = '<option value="">Todos os Setores</option>';
+        calibrationStatusFilter.value = "";
+        equipmentCountSpan.textContent = `Total: 0 equipamentos`;
+        currentlyDisplayedData = [];
+        if (searchInput) searchInput.value =
