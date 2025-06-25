@@ -122,20 +122,19 @@ export const parseCalibrationSheet = (worksheet) => {
 // NOVA FUNÇÃO: Parser para a Planilha de Manutenção Externa
 export const parseMaintenanceSheet = (worksheet) => {
     const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false, defval: '' });
-    console.log('Dados brutos da planilha de Manutenção (jsonData):', jsonData); // NOVO
-    if (jsonData.length === 0) {
-        console.warn("Planilha de Manutenção vazia ou sem dados após cabeçalho."); // NOVO
+    if (jsonData.length === 0) { // Adicionado log para ver se a planilha está vazia
+        console.warn("Planilha de Manutenção vazia ou sem dados após cabeçalho.");
         return [];
     }
 
     const headers = jsonData[0].map(h => String(h).trim());
-    console.log('Cabeçalhos da planilha de Manutenção:', headers); // NOVO
-
+    console.log('DEBUG: Cabeçalhos da planilha de Manutenção:', headers); // DEBUG
+    
     const idHeader = findHeaderName(headers, maintenanceSnPatrimColumnNames);
     const statusHeader = findHeaderName(headers, maintenanceStatusColumnNames);
 
-    console.log('idHeader encontrado:', idHeader); // NOVO
-    console.log('statusHeader encontrado:', statusHeader); // NOVO
+    console.log('DEBUG: idHeader encontrado para Manutenção:', idHeader); // DEBUG
+    console.log('DEBUG: statusHeader encontrado para Manutenção:', statusHeader); // DEBUG
 
     if (!idHeader || !statusHeader) {
         console.warn("Planilha de Manutenção ignorada por não conter colunas essenciais (SN/Patrimônio e Status).");
@@ -143,14 +142,14 @@ export const parseMaintenanceSheet = (worksheet) => {
     }
 
     const dataRows = jsonData.slice(1);
-    console.log('Linhas de dados de Manutenção:', dataRows); // NOVO
+    console.log('DEBUG: Linhas de dados de Manutenção (dataRows):', dataRows); // DEBUG
 
     return dataRows.map(row => {
         let obj = {};
         headers.forEach((header, index) => {
             obj[header] = row[index] !== undefined ? String(row[index]).trim() : '';
         });
-
+        
         obj['SN_PATRIM_MANUTENCAO'] = (obj[idHeader] ? String(obj[idHeader]).replace(/^0+/, '').trim() : ''); 
         obj['STATUS_MANUTENCAO_EXTERNA'] = obj[statusHeader] || 'Desconhecido'; 
 
