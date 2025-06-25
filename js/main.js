@@ -128,6 +128,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 workbook.SheetNames.forEach(sheetName => {
+                    // MOVIDO AQUI: Declaração de lowerCaseFileName e lowerCaseSheetName
+                    // Isso as torna acessíveis para todo o loop 'forEach(sheetName => ...)'
                     const lowerCaseFileName = fileName.toLowerCase();
                     const lowerCaseSheetName = sheetName.toLowerCase();
                     
@@ -151,9 +153,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
 
                     // LÓGICA DE IDENTIFICAÇÃO DE MANUTENÇÃO EXTERNA - ATUALIZADA
+                    // A string 'manu_externa' foi adicionada aqui para reconhecimento do nome do arquivo
                     if (lowerCaseFileName.includes('manutencao_externa') || lowerCaseSheetName.includes('manutencao_externa') || 
                         lowerCaseSheetName.includes('man_ext') || lowerCaseSheetName.includes('manut_ext') ||
-                        lowerCaseFileName.includes('manu_externa') || lowerCaseSheetName.includes('manu_externa')) { // NOVO TERMO
+                        lowerCaseFileName.includes('manu_externa') || lowerCaseSheetName.includes('manu_externa')) { 
                          const parsedMaintenance = parseMaintenanceSheet(workbook.Sheets[sheetName]);
                          tempMaintenanceData = tempMaintenanceData.concat(parsedMaintenance);
                          outputDiv.textContent += `\n- Arquivo de Manutenção Externa (${fileName} - Planilha: ${sheetName}) carregado. Total: ${parsedMaintenance.length} registros.`;
