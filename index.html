@@ -40,6 +40,12 @@
 
             <label for="searchInput">Buscar por Nº Série ou Patrimônio:</label>
             <input type="text" id="searchInput" placeholder="Digite SN, Patrimônio ou TAG...">
+
+            <label for="maintenanceFilter">Filtrar por Manutenção:</label>
+            <select id="maintenanceFilter">
+                <option value="">Todos</option>
+                <option value="Em Manutenção Externa">Em Manutenção Externa</option>
+                </select>
         </div>
 
         <button id="exportButton" style="margin-bottom: 15px;">Exportar Tabela para Excel</button>
@@ -65,7 +71,6 @@
     </div>
 
     <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
-
     <script type="module" src="js/main.js"></script>
 </body>
 </html>
