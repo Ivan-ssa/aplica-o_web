@@ -180,4 +180,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 const unknownDivergences = newDivergentCalibrations.filter(cal => cal._source === 'Desconhecida').length;
 
                 outputDiv.textContent += `\n\n--- Calibrações com Divergência (${newDivergentCalibrations.length}) ---`;
-                if (dhmeDivergences > 0) outputDiv.textContent += `\n  - DHME: ${dhmeDivergences}
+                if (dhmeDivergences > 0) outputDiv.textContent += `\n  - DHME: ${dhmeDivergences} (Status: "Não Cadastrado (DHME)")`;
+                if (sciencetechDivergences > 0) outputDiv.textContent += `\n  - Sciencetech: ${sciencetechDivergences} (Status: "Não Cadastrado (Sciencetech)")`;
+                if (unknownDivergences > 0) outputDiv.textContent += `\n  - Desconhecida: ${unknownDivergences} (Status: "Não Cadastrado (Desconhecido)")`;
+                outputDiv.textContent += `\nListadas na tabela principal com o status correspondente.`;
+            } else {
+                outputDiv.textContent += `\n\nNão foram encontradas calibrações sem equipamento correspondente.`;
+            }
+
+        } catch (error) {
+            outputDiv.textContent = `Ocorreu um erro geral no processamento: ${error.message}`;
+            console.error("Erro no processamento:", error);
+        }
+    });
+});
