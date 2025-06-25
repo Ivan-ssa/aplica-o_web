@@ -5,6 +5,7 @@ import { renderEquipmentTable, populateSectorFilter } from './uiRenderer.js';
 import { exportTableToExcel } from './excelExporter.js';
 
 document.addEventListener('DOMContentLoaded', () => {
+    // --- 1. DECLARAÇÃO DE TODOS OS ELEMENTOS HTML E VARIÁVEIS ---
     const fileInput = document.getElementById('excelFileInput');
     const processButton = document.getElementById('processButton');
     const outputDiv = document.getElementById('output');
@@ -13,22 +14,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const calibrationStatusFilter = document.getElementById('calibrationStatusFilter');
     const equipmentCountSpan = document.getElementById('equipmentCount');
     const exportButton = document.getElementById('exportButton');
-    const searchInput = document.getElementById('searchInput');
-    const maintenanceFilter = document.getElementById('maintenanceFilter'); // NOVO: Referência ao filtro de manutenção
+    const searchInput = document.getElementById('searchInput'); // Elemento do buscador
 
-    let allEquipmentData = [];
-    let originalEquipmentData = [];
-    let allCalibrationData = [];
-    let allMaintenanceData = [];
-    let currentlyDisplayedData = [];
+    let allEquipmentData = []; // Contém equipamentos originais + divergentes injetados
+    let originalEquipmentData = []; // Para armazenar apenas os equipamentos originais (para o filtro de setor)
+    let allCalibrationData = []; // Calibrações lidas de TODAS as fontes
+    let allMaintenanceData = []; // Para armazenar dados de manutenção
+    let currentlyDisplayedData = []; // Dados atualmente visíveis na tabela (após filtros e busca)
 
+    // NOVO: Expor allEquipmentData para o escopo global para depuração
+    // REMOVA ESTA LINHA DEPOIS QUE A DEPURAÇÃO TERMINAR!
     window.allEquipmentData = allEquipmentData; 
 
+    // --- 2. DECLARAÇÃO DA FUNÇÃO applyFilters ---
+    // Esta função DEVE ser declarada ANTES de ser usada nos addEventListener
     const applyFilters = () => {
-        let filteredData = allEquipmentData;
+        let filteredData = allEquipmentData; // Começa com todos os dados (originais + divergentes)
         const selectedSector = sectorFilter.value;
-        const selectedCalibrationStatus = calibrationStatusFilter.value; // Renomeado para evitar conflito
-        const selectedMaintenanceStatus = maintenanceFilter.value; // NOVO: Pega o status de manutenção
+        const selectedStatus = calibrationStatusFilter.value;
         const searchTerm = searchInput.value.trim().toLowerCase();
 
         // Aplicar filtro por setor
@@ -37,38 +40,35 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Aplicar filtro por status de calibração
-        if (selectedCalibrationStatus !== "") { // Usa selectedCalibrationStatus
-            if (selectedCalibrationStatus === "Calibrado (Total)") {
+        if (selectedStatus !== "") {
+            if (selectedStatus === "Calibrado (Total)") {
                 filteredData = filteredData.filter(eq => 
                     eq.calibrationStatus.startsWith("Calibrado (") 
                 );
             } else {
-                filteredData = filteredData.filter(eq => eq.calibrationStatus === selectedCalibrationStatus);
+                filteredData = filteredData.filter(eq => eq.calibrationStatus === selectedStatus);
             }
-        }
-
-        // NOVO: Aplicar filtro por status de manutenção
-        if (selectedMaintenanceStatus !== "") {
-            filteredData = filteredData.filter(eq => eq.maintenanceStatus === selectedMaintenanceStatus);
         }
 
         // Aplicar filtro de busca por termo
         if (searchTerm !== "") {
             filteredData = filteredData.filter(eq => {
                 const tag = String(eq.TAG || '').toLowerCase();
-                const serial = String(eq['Nº Série'] || '').replace(/^0+/, '').toLowerCase();
+                const serial = String(eq['Nº Série'] || '').replace(/^0+/, '').toLowerCase(); 
                 const patrimonio = String(eq.Patrimônio || '').toLowerCase();
+
+                // Busca em TAG, Nº Série (normalizado) ou Patrimônio
                 return tag.includes(searchTerm) || serial.includes(searchTerm) || patrimonio.includes(searchTerm);
             });
         }
 
-        currentlyDisplayedData = filteredData;
+        currentlyDisplayedData = filteredData; 
         renderEquipmentTable(filteredData, equipmentTableBody, equipmentCountSpan);
     };
 
-    sectorFilter.addEventListener('change', applyFilters);
-    calibrationStatusFilter.addEventListener('change', applyFilters);
-    maintenanceFilter.addEventListener('change', applyFilters); // NOVO: Listener para o filtro de manutenção
+    // --- 3. EVENT LISTENERS QUE USAM applyFilters ---
+    if (sectorFilter) sectorFilter.addEventListener('change', applyFilters);
+    if (calibrationStatusFilter) calibrationStatusFilter.addEventListener('change', applyFilters);
     
     if (searchInput) {
         searchInput.addEventListener('input', applyFilters); 
@@ -89,6 +89,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error("Elemento com ID 'exportButton' não encontrado! Verifique o index.html."); 
     }
 
+    // Listener para o botão de processar arquivos
     processButton.addEventListener('click', async () => {
         const files = fileInput.files;
         if (files.length === 0) {
@@ -96,15 +97,15 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // Resetar variáveis e UI antes de processar novos arquivos
         outputDiv.textContent = 'Processando arquivos...';
         allEquipmentData = [];
         originalEquipmentData = [];
         allCalibrationData = [];
-        allMaintenanceData = []; 
+        allMaintenanceData = []; // Resetar dados de manutenção
         equipmentTableBody.innerHTML = '';
         sectorFilter.innerHTML = '<option value="">Todos os Setores</option>';
         calibrationStatusFilter.value = "";
-        maintenanceFilter.value = ""; // NOVO: Resetar filtro de manutenção
         equipmentCountSpan.textContent = `Total: 0 equipamentos`;
         currentlyDisplayedData = [];
         if (searchInput) searchInput.value = ''; 
@@ -119,6 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
             fileResults.forEach(result => {
                 const { fileName, workbook } = result;
 
+                // Processa planilha de Equipamentos
                 if (workbook.SheetNames.includes('Equipamentos')) {
                     const parsedEquipments = parseEquipmentSheet(workbook.Sheets['Equipamentos']);
                     tempEquipmentData = tempEquipmentData.concat(parsedEquipments);
@@ -126,13 +128,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 workbook.SheetNames.forEach(sheetName => {
+                    const lowerCaseFileName = fileName.toLowerCase();
+                    const lowerCaseSheetName = sheetName.toLowerCase();
+                    
                     const parsedCalibrations = parseCalibrationSheet(workbook.Sheets[sheetName]);
                     if (parsedCalibrations.length > 0) {
                         const calibrationsWithSource = parsedCalibrations.map(cal => {
                             let source = 'Desconhecida'; 
-                            const lowerCaseFileName = fileName.toLowerCase();
-                            const lowerCaseSheetName = sheetName.toLowerCase();
-
+                            
                             if (lowerCaseFileName.includes('sciencetech') || lowerCaseSheetName.includes('sciencetech')) {
                                 source = 'Sciencetech';
                             } else if (lowerCaseFileName.includes('dhmed') || lowerCaseFileName.includes('dhme') || 
@@ -147,7 +150,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         outputDiv.textContent += `\n- Arquivo de Calibração (${fileName} - Planilha: ${sheetName}) carregado. Total: ${parsedCalibrations.length} registros.`;
                     }
 
-                    if (lowerCaseFileName.includes('manutencao_externa') || lowerCaseSheetName.includes('manutencao_externa') || lowerCaseSheetName.includes('man_ext') || lowerCaseSheetName.includes('manut_ext')) { 
+                    // LÓGICA DE IDENTIFICAÇÃO DE MANUTENÇÃO EXTERNA - ATUALIZADA
+                    if (lowerCaseFileName.includes('manutencao_externa') || lowerCaseSheetName.includes('manutencao_externa') || 
+                        lowerCaseSheetName.includes('man_ext') || lowerCaseSheetName.includes('manut_ext') ||
+                        lowerCaseFileName.includes('manu_externa') || lowerCaseSheetName.includes('manu_externa')) { // NOVO TERMO
                          const parsedMaintenance = parseMaintenanceSheet(workbook.Sheets[sheetName]);
                          tempMaintenanceData = tempMaintenanceData.concat(parsedMaintenance);
                          outputDiv.textContent += `\n- Arquivo de Manutenção Externa (${fileName} - Planilha: ${sheetName}) carregado. Total: ${parsedMaintenance.length} registros.`;
@@ -178,7 +184,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const maintenanceMap = new Map(); 
                 tempMaintenanceData.forEach(maint => {
                     const id = (maint.SN_PATRIM_MANUTENCAO ? String(maint.SN_PATRIM_MANUTENCAO).replace(/^0+/, '').trim() : '') || 
-                               (maint.PATRIM ? String(maint.PATRIM).trim() : ''); // Adicionado fallback para PATRIM do DHME/Sciencetech
+                               (maint.PATRIM ? String(maint.PATRIM).trim() : ''); 
                     if (id) {
                         maintenanceMap.set(id, maint.STATUS_MANUTENCAO_EXTERNA);
                     }
@@ -188,7 +194,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const equipmentId = (eq['Nº Série'] ? String(eq['Nº Série']).replace(/^0+/, '').trim() : '') || (eq.Patrimônio ? String(eq.Patrimônio).trim() : '');
                     if (equipmentId && maintenanceMap.has(equipmentId)) {
                         eq.maintenanceStatus = maintenanceMap.get(equipmentId);
-                    } else if (!eq.maintenanceStatus || eq.maintenanceStatus === 'Não Aplicável') { // Garante que não sobrescreve
+                    } else if (!eq.maintenanceStatus || eq.maintenanceStatus === 'Não Aplicável') { 
                         eq.maintenanceStatus = 'Não Aplicável';
                     }
                 });
