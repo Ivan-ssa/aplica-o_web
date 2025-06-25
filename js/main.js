@@ -43,7 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (selectedStatus !== "") {
             if (selectedStatus === "Calibrado (Total)") {
                 filteredData = filteredData.filter(eq => 
-                    eq.calibrationStatus.startsWith("Calibrado (") // Verifica se começa com "Calibrado ("
+                    eq.calibrationStatus.startsWith("Calibrado (") 
                 );
             } else {
                 filteredData = filteredData.filter(eq => eq.calibrationStatus === selectedStatus);
@@ -54,15 +54,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (searchTerm !== "") {
             filteredData = filteredData.filter(eq => {
                 const tag = String(eq.TAG || '').toLowerCase();
-                const serial = String(eq['Nº Série'] || '').replace(/^0+/, '').toLowerCase(); // Normaliza SN
+                const serial = String(eq['Nº Série'] || '').replace(/^0+/, '').toLowerCase(); 
                 const patrimonio = String(eq.Patrimônio || '').toLowerCase();
 
-                // Busca em TAG, Nº Série (normalizado) ou Patrimônio
                 return tag.includes(searchTerm) || serial.includes(searchTerm) || patrimonio.includes(searchTerm);
             });
         }
 
-        currentlyDisplayedData = filteredData; // Atualiza os dados que estão sendo exibidos
+        currentlyDisplayedData = filteredData; 
         renderEquipmentTable(filteredData, equipmentTableBody, equipmentCountSpan);
     };
 
@@ -102,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
         allEquipmentData = [];
         originalEquipmentData = [];
         allCalibrationData = [];
-        allMaintenanceData = []; // Resetar dados de manutenção
+        allMaintenanceData = []; 
         equipmentTableBody.innerHTML = '';
         sectorFilter.innerHTML = '<option value="">Todos os Setores</option>';
         calibrationStatusFilter.value = "";
@@ -128,13 +127,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 workbook.SheetNames.forEach(sheetName => {
+                    // MOVIDO AQUI: Declaração de lowerCaseFileName e lowerCaseSheetName
+                    // Isso as torna acessíveis para todo o loop 'forEach(sheetName => ...)'
+                    const lowerCaseFileName = fileName.toLowerCase();
+                    const lowerCaseSheetName = sheetName.toLowerCase();
+                    
                     const parsedCalibrations = parseCalibrationSheet(workbook.Sheets[sheetName]);
                     if (parsedCalibrations.length > 0) {
                         const calibrationsWithSource = parsedCalibrations.map(cal => {
                             let source = 'Desconhecida'; 
-                            const lowerCaseFileName = fileName.toLowerCase();
-                            const lowerCaseSheetName = sheetName.toLowerCase();
-
+                            
                             if (lowerCaseFileName.includes('sciencetech') || lowerCaseSheetName.includes('sciencetech')) {
                                 source = 'Sciencetech';
                             } else if (lowerCaseFileName.includes('dhmed') || lowerCaseFileName.includes('dhme') || 
@@ -143,14 +145,15 @@ document.addEventListener('DOMContentLoaded', () => {
                                        lowerCaseFileName.includes('dhm') || lowerCaseSheetName.includes('dhm')) { 
                                 source = 'DHMED'; 
                             }
+
                             return { ...cal, _source: source };
                         });
                         tempCalibrationData = tempCalibrationData.concat(calibrationsWithSource);
                         outputDiv.textContent += `\n- Arquivo de Calibração (${fileName} - Planilha: ${sheetName}) carregado. Total: ${parsedCalibrations.length} registros.`;
                     }
 
-                    // NOVO: Processa planilha de Manutenção Externa
-                    if (lowerCaseFileName.includes('manutencao_externa') || lowerCaseSheetName.includes('manutencao_externa') || lowerCaseSheetName.includes('man_ext') || lowerCaseSheetName.includes('manut_ext')) { // Assumindo nome do arquivo ou planilha
+                    // Processa planilha de Manutenção Externa
+                    if (lowerCaseFileName.includes('manutencao_externa') || lowerCaseSheetName.includes('manutencao_externa') || lowerCaseSheetName.includes('man_ext') || lowerCaseSheetName.includes('manut_ext')) { 
                          const parsedMaintenance = parseMaintenanceSheet(workbook.Sheets[sheetName]);
                          tempMaintenanceData = tempMaintenanceData.concat(parsedMaintenance);
                          outputDiv.textContent += `\n- Arquivo de Manutenção Externa (${fileName} - Planilha: ${sheetName}) carregado. Total: ${parsedMaintenance.length} registros.`;
@@ -160,10 +163,8 @@ document.addEventListener('DOMContentLoaded', () => {
             
             originalEquipmentData = tempEquipmentData;
             
-            // Primeiros cruzamentos (calibração e divergências)
             const { equipmentData: processedEquipmentData, calibratedCount, notCalibratedCount, divergentCalibrations: newDivergentCalibrations } = crossReferenceData(originalEquipmentData, tempCalibrationData, outputDiv);
             
-            // allEquipmentData agora contém originais + divergentes
             allEquipmentData = processedEquipmentData.concat(newDivergentCalibrations.map(cal => ({
                 TAG: cal.TAG || 'N/A', 
                 Equipamento: cal.EQUIPAMENTO || 'N/A',
@@ -175,14 +176,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 calibrationStatus: `Não Cadastrado (${cal._source || 'Desconhecida'})`, 
                 calibrations: [cal], 
                 nextCalibrationDate: cal['DATA VAL'] || 'N/A',
-                maintenanceStatus: 'Não Aplicável' // Inicializa para os divergentes também
+                maintenanceStatus: 'Não Aplicável' 
             })));
 
-            // NOVO: CRUZAMENTO PARA MANUTENÇÃO EXTERNA
+            // CRUZAMENTO PARA MANUTENÇÃO EXTERNA
             if (tempMaintenanceData.length > 0) {
-                const maintenanceMap = new Map(); // Para acesso rápido aos dados de manutenção
+                const maintenanceMap = new Map(); 
                 tempMaintenanceData.forEach(maint => {
-                    // Usa SN ou Patrimônio para a chave, normalizando ambos
                     const id = (maint.SN_PATRIM_MANUTENCAO ? String(maint.SN_PATRIM_MANUTENCAO).replace(/^0+/, '').trim() : '');
                     if (id) {
                         maintenanceMap.set(id, maint.STATUS_MANUTENCAO_EXTERNA);
@@ -190,11 +190,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
                 allEquipmentData.forEach(eq => {
-                    // Pega o ID do equipamento (SN ou Patrimônio) para buscar no mapa
                     const equipmentId = (eq['Nº Série'] ? String(eq['Nº Série']).replace(/^0+/, '').trim() : '') || (eq.Patrimônio ? String(eq.Patrimônio).trim() : '');
                     if (equipmentId && maintenanceMap.has(equipmentId)) {
                         eq.maintenanceStatus = maintenanceMap.get(equipmentId);
-                    } else if (!eq.maintenanceStatus) { // Garante que todos tenham um status inicial se não foi setado
+                    } else if (!eq.maintenanceStatus) { 
                         eq.maintenanceStatus = 'Não Aplicável';
                     }
                 });
