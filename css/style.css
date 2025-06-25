@@ -52,7 +52,7 @@ th {
     color: #495057;
 }
 tr:nth-child(even) {
-    background-color: #f8f9fa;
+    background-color: #f8f9fa; /* Mantido para linhas não destacadas */
 }
 tr:hover {
     background-color: #e2e6ea;
@@ -75,7 +75,7 @@ tr:hover {
     align-items: center;
     gap: 15px;
 }
-#sectorFilter, #calibrationStatusFilter, #searchInput { /* NOVO: Adicionado #searchInput aqui */
+#sectorFilter, #calibrationStatusFilter {
     padding: 10px;
     border: 1px solid #ced4da;
     border-radius: 5px;
@@ -90,42 +90,39 @@ tr:hover {
     border-radius: 5px;
     color: #007bff;
 }
+#searchInput { /* Estilo para o campo de busca */
+    padding: 10px;
+    border: 1px solid #ced4da;
+    border-radius: 5px;
+    background-color: white;
+    min-width: 250px;
+    box-sizing: border-box; /* Garante que padding e border sejam incluídos na largura total */
+}
 
-/* Estilos para destaque das linhas */
-tr.not-calibrated {
-    background-color: #ffcccc;
-    border-left: 5px solid #d9534f;
-}
-tr.calibrated {
-    background-color: #ccffcc;
-    border-left: 5px solid #5cb85c;
-}
-tr.divergent-calibrated {
-    background-color: #fffacd;
-    border-left: 5px solid #ffcc00;
-}
-tr.expired-calibration {
-    background-color: #fff3cd;
-    border-left: 5px solid #ffc107;
-}
 /* Estilos para destaque das linhas */
 tr.not-calibrated {
     background-color: #ffcccc; /* Vermelho claro */
     border-left: 5px solid #d9534f; /* Borda vermelha */
 }
-tr.calibrated-dhme { /* NOVO: Verde para Calibrado (DHME) */
-    background-color: #ccffcc; /* Verde claro */
-    border-left: 5px solid #5cb85c; /* Borda verde */
+tr.calibrated-dhme { /* Verde para Calibrado (DHME) - MAIS FORTE */
+    background-color: #b3e6b3; /* Verde claro forte */
+    border-left: 5px solid #28a745; /* Borda verde mais escura */
 }
-tr.calibrated-sciencetech { /* NOVO: Azul para Calibrado (Sciencetech) */
-    background-color: #cceeff; /* Azul claro */
-    border-left: 5px solid #0099cc; /* Borda azul */
+tr.calibrated-sciencetech { /* Azul para Calibrado (Sciencetech) - MAIS FORTE */
+    background-color: #b3d9ff; /* Azul claro forte */
+    border-left: 5px solid #007bff; /* Borda azul mais escura */
 }
 tr.divergent-calibrated { /* Amarelo para Não Cadastrado (DHME) */
     background-color: #fffacd; 
     border-left: 5px solid #ffcc00; 
 }
-tr.divergent-calibrated-sciencetech { /* NOVO: Laranja para Não Cadastrado (Sciencetech) */
-    background-color: #ffdab9; /* Pêssego claro */
-    border-left: 5px solid #ff8c00; /* Laranja escuro */
+tr.divergent-calibrated-sciencetech { /* Laranja para Não Cadastrado (Sciencetech) */
+    background-color: #ffdab9; 
+    border-left: 5px solid #ff8c00; 
+}
+
+/* Estilo para calibração vencida (se você adicionar a lógica no JS) */
+tr.expired-calibration {
+    background-color: #fff3cd;
+    border-left: 5px solid #ffc107;
 }
