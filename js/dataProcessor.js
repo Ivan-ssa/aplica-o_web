@@ -47,7 +47,8 @@ export const crossReferenceData = (equipmentData, calibrationData, outputDiv) =>
                     }
                 });
 
-                equipment.calibrationStatus = `Calibrado (${calibrationSource})`;
+                // AGORA USA 'DHMED' ou 'Sciencetech' EXATAMENTE
+                equipment.calibrationStatus = `Calibrado (${calibrationSource === 'DHME' ? 'DHMED' : calibrationSource})`; // Ajusta DHME para DHMED
                 equipment.calibrations = matchingCalibrations; 
                 equipment.nextCalibrationDate = latestDueDateFormatted;
                 calibratedCount++;
