@@ -71,7 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (exportButton) {
         exportButton.addEventListener('click', () => {
             if (currentlyDisplayedData.length > 0) {
-                exportTableToExcel(currentlyDisplayedData, 'Equipamentos_Calibracao_Filtrados');
+                exportTableToExcel(currentlyDisplayedData, 'Equipamentos_Calibacao_Filtrados');
                 outputDiv.textContent = 'Exportando dados para Excel...';
             } else {
                 outputDiv.textContent = 'Não há dados para exportar. Por favor, carregue e processe os arquivos primeiro.';
@@ -99,4 +99,85 @@ document.addEventListener('DOMContentLoaded', () => {
         calibrationStatusFilter.value = "";
         equipmentCountSpan.textContent = `Total: 0 equipamentos`;
         currentlyDisplayedData = [];
-        if (searchInput) searchInput.value =
+        if (searchInput) searchInput.value = ''; // Limpa o campo de busca ao processar novos arquivos
+
+        try {
+            const fileResults = await Promise.all(Array.from(files).map(readFile));
+
+            let tempEquipmentData = []; // Temporário para equipamentos lidos
+            let tempCalibrationData = []; // Temporário para calibrações lidas
+
+            fileResults.forEach(result => {
+                const { fileName, workbook } = result;
+
+                // Processa planilha de Equipamentos
+                if (workbook.SheetNames.includes('Equipamentos')) {
+                    const parsedEquipments = parseEquipmentSheet(workbook.Sheets['Equipamentos']);
+                    tempEquipmentData = tempEquipmentData.concat(parsedEquipments);
+                    outputDiv.textContent += `\n- Arquivo de Equipamentos (${fileName}) carregado. Total: ${parsedEquipments.length} registros.`;
+                }
+
+                // Processa planilhas de Calibração (DHME, Sciencetech, etc.)
+                workbook.SheetNames.forEach(sheetName => {
+                    const parsedCalibrations = parseCalibrationSheet(workbook.Sheets[sheetName]);
+                    if (parsedCalibrations.length > 0) {
+                        // Lógica para identificar a origem da calibração
+                        const calibrationsWithSource = parsedCalibrations.map(cal => {
+                            let source = 'Desconhecida'; // Default
+
+                            const lowerCaseFileName = fileName.toLowerCase();
+                            const lowerCaseSheetName = sheetName.toLowerCase();
+
+                            if (lowerCaseFileName.includes('sciencetech') || lowerCaseSheetName.includes('sciencetech')) {
+                                source = 'Sciencetech';
+                            } else if (lowerCaseFileName.includes('dhme') || lowerCaseSheetName.includes('dhme') || lowerCaseSheetName.includes('plan1')) {
+                                source = 'DHME';
+                            }
+                            // Adicione mais 'else if' aqui para outras empresas/planilhas de calibração se necessário
+                            // Ex: else if (lowerCaseFileName.includes('novaempresa')) { source = 'NovaEmpresa'; }
+
+                            return {
+                                ...cal,
+                                _source: source,
+                            };
+                        });
+                        tempCalibrationData = tempCalibrationData.concat(calibrationsWithSource);
+                        outputDiv.textContent += `\n- Arquivo de Calibração (${fileName} - Planilha: ${sheetName}) carregado. Total: ${parsedCalibrations.length} registros.`;
+                    }
+                });
+            });
+            
+            // Armazena a lista de equipamentos originais ANTES de injetar as divergências
+            originalEquipmentData = tempEquipmentData;
+
+            // Cruza os dados e identifica divergências
+            const { equipmentData: processedEquipmentData, calibratedCount, notCalibratedCount, divergentCalibrations: newDivergentCalibrations } = crossReferenceData(originalEquipmentData, tempCalibrationData, outputDiv);
+            
+            // allEquipmentData agora contém equipamentos originais (com status atualizado) + equipamentos divergentes
+            allEquipmentData = processedEquipmentData.concat(newDivergentCalibrations.map(cal => ({
+                TAG: cal.TAG || 'N/A', // Pode ser que DHME/Sciencetech não tenha TAG
+                Equipamento: cal.EQUIPAMENTO || 'N/A',
+                Modelo: cal.MODELO || 'N/A',
+                Fabricante: cal.FABRICANTE || cal.MARCA || 'N/A', // Tentar FABRICANTE ou MARCA
+                Setor: cal.SETOR || 'N/A',
+                'Nº Série': cal.SN || 'N/A',
+                Patrimônio: cal.PATRIM || 'N/A',
+                calibrationStatus: `Não Cadastrado (${cal._source || 'Desconhecido'})`, // Status com origem
+                calibrations: [cal], // Mantém a calibração original para tooltip
+                nextCalibrationDate: cal['DATA VAL'] || 'N/A'
+            })));
+
+
+            // Aplica os filtros iniciais para renderizar a tabela e popular filtros
+            applyFilters();
+            populateSectorFilter(originalEquipmentData, sectorFilter); // Popula filtro de setor APENAS com base nos equipamentos originais
+            outputDiv.textContent += '\nProcessamento concluído. Verifique a tabela abaixo.';
+
+            // Mensagem de resumo das divergências no output
+            if (newDivergentCalibrations.length > 0) {
+                const dhmeDivergences = newDivergentCalibrations.filter(cal => cal._source === 'DHME').length;
+                const sciencetechDivergences = newDivergentCalibrations.filter(cal => cal._source === 'Sciencetech').length;
+                const unknownDivergences = newDivergentCalibrations.filter(cal => cal._source === 'Desconhecida').length;
+
+                outputDiv.textContent += `\n\n--- Calibrações com Divergência (${newDivergentCalibrations.length}) ---`;
+                if (dhmeDivergences > 0) outputDiv.textContent += `\n  - DHME: ${dhmeDivergences}
