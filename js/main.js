@@ -142,4 +142,67 @@ document.addEventListener('DOMContentLoaded', () => {
                             } else if (lowerCaseFileName.includes('dhmed') || lowerCaseFileName.includes('dhme') || 
                                        lowerCaseSheetName.includes('dhmed') || lowerCaseSheetName.includes('dhme') || 
                                        lowerCaseSheetName.includes('plan1') || lowerCaseSheetName.includes('planilha1') ||
-                                       lowerCase
+                                       lowerCaseFileName.includes('dhm') || lowerCaseSheetName.includes('dhm')) { 
+                                source = 'DHMED'; 
+                            }
+
+                            return {
+                                ...cal,
+                                _source: source,
+                            };
+                        });
+                        tempCalibrationData = tempCalibrationData.concat(calibrationsWithSource);
+                        outputDiv.textContent += `\n- Arquivo de Calibração (${fileName} - Planilha: ${sheetName}) carregado. Total: ${parsedCalibrations.length} registros.`;
+                    }
+                });
+            });
+            
+            // Armazena a lista de equipamentos originais ANTES de injetar as divergências
+            originalEquipmentData = tempEquipmentData;
+
+            // Cruza os dados e identifica divergências
+            const { equipmentData: processedEquipmentData, calibratedCount, notCalibratedCount, divergentCalibrations: newDivergentCalibrations } = crossReferenceData(originalEquipmentData, tempCalibrationData, outputDiv);
+            
+            // allEquipmentData agora contém equipamentos originais (com status atualizado) + equipamentos divergentes
+            allEquipmentData = processedEquipmentData.concat(newDivergentCalibrations.map(cal => ({
+                TAG: cal.TAG || 'N/A', 
+                Equipamento: cal.EQUIPAMENTO || 'N/A',
+                Modelo: cal.MODELO || 'N/A',
+                Fabricante: cal.FABRICANTE || cal.MARCA || 'N/A', 
+                Setor: cal.SETOR || 'N/A',
+                'Nº Série': cal.SN || 'N/A',
+                Patrimônio: cal.PATRIM || 'N/A',
+                calibrationStatus: `Não Cadastrado (${cal._source || 'Desconhecido'})`, 
+                calibrations: [cal], 
+                nextCalibrationDate: cal['DATA VAL'] || 'N/A'
+            })));
+
+            // ATUALIZAÇÃO DA REFERÊNCIA GLOBAL PARA DEPURAÇÃO
+            window.allEquipmentData = allEquipmentData; 
+            
+            // Aplica os filtros iniciais para renderizar a tabela e popular filtros
+            applyFilters();
+            populateSectorFilter(originalEquipmentData, sectorFilter); // Popula filtro de setor APENAS com base nos equipamentos originais
+            outputDiv.textContent += '\nProcessamento concluído. Verifique a tabela abaixo.';
+
+            // Mensagem de resumo das divergências no output
+            if (newDivergentCalibrations.length > 0) {
+                const dhmedDivergences = newDivergentCalibrations.filter(cal => cal._source === 'DHMED').length;
+                const sciencetechDivergences = newDivergentCalibrations.filter(cal => cal._source === 'Sciencetech').length;
+                const unknownDivergences = newDivergentCalibrations.filter(cal => cal._source === 'Desconhecida').length;
+
+                outputDiv.textContent += `\n\n--- Calibrações com Divergência (${newDivergentCalibrations.length}) ---`;
+                if (dhmedDivergences > 0) outputDiv.textContent += `\n  - DHMED: ${dhmedDivergences} (Status: "Não Cadastrado (DHMED)")`;
+                if (sciencetechDivergences > 0) outputDiv.textContent += `\n  - Sciencetech: ${sciencetechDivergences} (Status: "Não Cadastrado (Sciencetech)")`;
+                if (unknownDivergences > 0) outputDiv.textContent += `\n  - Desconhecida: ${unknownDivergences} (Status: "Não Cadastrado (Desconhecido)")`;
+                outputDiv.textContent += `\nListadas na tabela principal com o status correspondente.`;
+            } else {
+                outputDiv.textContent += `\n\nNão foram encontradas calibrações sem equipamento correspondente.`;
+            }
+
+        } catch (error) {
+            outputDiv.textContent = `Ocorreu um erro geral no processamento: ${error.message}`;
+            console.error("Erro no processamento:", error);
+        }
+    });
+});
