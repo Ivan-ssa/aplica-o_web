@@ -13,11 +13,11 @@ export const renderEquipmentTable = (dataToRender, equipmentTableBody, equipment
         // Lógica de aplicação de classe CSS por status detalhado
         if (equipment.calibrationStatus === 'Não Calibrado') {
             row.classList.add('not-calibrated'); 
-        } else if (equipment.calibrationStatus === 'Calibrado (DHME)') {
-            row.classList.add('calibrated-dhme'); 
+        } else if (equipment.calibrationStatus === 'Calibrado (DHMED)') { // AGORA VERIFICA EXATAMENTE 'DHMED'
+            row.classList.add('calibrated-dhme'); // Mantém a classe CSS existente para o verde
         } else if (equipment.calibrationStatus === 'Calibrado (Sciencetech)') {
             row.classList.add('calibrated-sciencetech'); 
-        } else if (equipment.calibrationStatus === 'Não Cadastrado (DHME)') {
+        } else if (equipment.calibrationStatus === 'Não Cadastrado (DHMED)') { // AGORA VERIFICA EXATAMENTE 'DHMED'
             row.classList.add('divergent-calibrated'); 
         } else if (equipment.calibrationStatus === 'Não Cadastrado (Sciencetech)') {
             row.classList.add('divergent-calibrated-sciencetech'); 
