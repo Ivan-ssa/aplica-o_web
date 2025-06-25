@@ -16,14 +16,20 @@ export const exportTableToExcel = (data, filename = 'export_data') => {
         "Nº Série",
         "Patrimônio",
         "Status Calibração",
-        "Data Vencimento Calibração"
+        "Data Vencimento Calibração",
+        "Status Manutenção" // Adicionado o cabeçalho de manutenção para exportação
     ];
 
     // Mapeia os dados para o formato que a planilha espera, na ordem correta dos cabeçalhos
     const exportRows = data.map(item => {
         let row = {};
         headers.forEach(header => {
-            row[header] = item[header] !== undefined ? item[header] : '';
+            // Garante que o valor de maintenanceStatus seja exportado corretamente
+            if (header === "Status Manutenção") {
+                row[header] = item.maintenanceStatus !== undefined ? item.maintenanceStatus : '';
+            } else {
+                row[header] = item[header] !== undefined ? item[header] : '';
+            }
         });
         return row;
     });
