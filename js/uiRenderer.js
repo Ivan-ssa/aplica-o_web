@@ -2,7 +2,7 @@
 export const renderEquipmentTable = (dataToRender, equipmentTableBody, equipmentCountSpan) => {
     equipmentTableBody.innerHTML = '';
     if (!dataToRender || dataToRender.length === 0) {
-        equipmentTableBody.innerHTML = '<tr><td colspan="9">Nenhum equipamento encontrado ou carregado.</td></tr>';
+        equipmentTableBody.innerHTML = '<tr><td colspan="10">Nenhum equipamento encontrado ou carregado.</td></tr>'; // Colspan ajustado para 10
         equipmentCountSpan.textContent = `Total: 0 equipamentos`;
         return;
     }
@@ -10,19 +10,22 @@ export const renderEquipmentTable = (dataToRender, equipmentTableBody, equipment
     dataToRender.forEach(equipment => {
         const row = equipmentTableBody.insertRow();
         
-        // Lógica de aplicação de classe CSS por status detalhado
+        // Lógica de aplicação de classe CSS por status de Calibração
         if (equipment.calibrationStatus === 'Não Calibrado') {
             row.classList.add('not-calibrated'); 
-        } else if (equipment.calibrationStatus === 'Calibrado (DHMED)') { // AGORA VERIFICA EXATAMENTE 'DHMED'
-            row.classList.add('calibrated-dhme'); // Mantém a classe CSS existente para o verde
+        } else if (equipment.calibrationStatus === 'Calibrado (DHMED)') {
+            row.classList.add('calibrated-dhme'); 
         } else if (equipment.calibrationStatus === 'Calibrado (Sciencetech)') {
             row.classList.add('calibrated-sciencetech'); 
-        } else if (equipment.calibrationStatus === 'Não Cadastrado (DHMED)') { // AGORA VERIFICA EXATAMENTE 'DHMED'
+        } else if (equipment.calibrationStatus === 'Não Cadastrado (DHMED)') {
             row.classList.add('divergent-calibrated'); 
         } else if (equipment.calibrationStatus === 'Não Cadastrado (Sciencetech)') {
             row.classList.add('divergent-calibrated-sciencetech'); 
-        } else {
-            // Caso algum status não esteja mapeado, não aplica cor de fundo específica
+        } 
+
+        // NOVO: Aplicar classe CSS para Status de Manutenção
+        if (equipment.maintenanceStatus && equipment.maintenanceStatus !== 'Não Aplicável') {
+            row.classList.add('in-external-maintenance'); 
         }
 
 
@@ -42,6 +45,10 @@ export const renderEquipmentTable = (dataToRender, equipmentTableBody, equipment
 
         const vencimentoCell = row.insertCell();
         vencimentoCell.textContent = equipment.nextCalibrationDate || 'N/A';
+
+        // NOVA CÉLULA PARA STATUS DE MANUTENÇÃO
+        const maintenanceCell = row.insertCell();
+        maintenanceCell.textContent = equipment.maintenanceStatus || '';
     });
 
     equipmentCountSpan.textContent = `Total: ${dataToRender.length} equipamentos`;
