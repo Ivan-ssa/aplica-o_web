@@ -1,30 +1,14 @@
 // js/excelReader.js
 
 // Mapeamentos de nomes de colunas alternativos para as chaves padronizadas
-
-// Para o Número de Série (SN)
-// MUDANÇA AQUI: Adicionado 'NÚMERO DE SÉRIE'
 const snColumnNames = ['SN', 'NUMERO_SERIE', 'NUMERO DE SERIE', 'SERIAL_NUMBER', 'SERIAL NO', 'NÚMERO DE SÉRIE']; 
-
-// Para a Data de Validade da Calibração (DATA VAL) - Sciencetech não tem, mas outras podem ter
 const dataValColumnNames = ['DATA VAL', 'DATA_VALIDADE', 'DATA VALIDADE', 'VALIDADE', 'VALIDITY_DATE', 'VENCIMENTO'];
-
-// Para a Data de Calibração (DATA CAL)
 const dataCalColumnNames = ['DATA CAL', 'DATA_CALIBRACAO', 'DATA_CAL', 'DATA DE SAIDA', 'DATA DE CRIACAO'];
 
-// Para o nome do Equipamento (EQUIPAMENTO)
 const equipamentoColumnNames = ['EQUIPAMENTO', 'TIPO DE EQUIPAMENTO', 'NOME EQUIPAMENTO'];
-
-// Para o Fabricante/Marca (FABRICANTE)
 const fabricanteColumnNames = ['FABRICANTE', 'MARCA', 'MANUFACTURER'];
-
-// Para o Modelo (MODELO)
 const modeloColumnNames = ['MODELO', 'MODEL'];
-
-// Para o Patrimônio (PATRIM)
 const patrimonioColumnNames = ['PATRIM', 'PATRIMONIO', 'ASSET TAG'];
-
-// Para o Tipo de Serviço (TIPO SERVICO)
 const tipoServicoColumnNames = ['TIPO SERVICO', 'TIPO_SERVICO', 'SERVICE TYPE'];
 
 
@@ -32,7 +16,6 @@ const tipoServicoColumnNames = ['TIPO SERVICO', 'TIPO_SERVICO', 'SERVICE TYPE'];
 const findHeaderName = (headers, possibleNames) => {
     const lowerCaseHeaders = headers.map(h => h.toLowerCase()); 
     for (const name of possibleNames) {
-        // Compara com nomes possíveis em minúsculas (incluindo o original com acento)
         if (lowerCaseHeaders.includes(name.toLowerCase())) { 
             return headers[lowerCaseHeaders.indexOf(name.toLowerCase())];
         }
@@ -84,14 +67,12 @@ export const parseCalibrationSheet = (worksheet) => {
     if (jsonDataRaw.length === 0) return [];
 
     const headers = jsonDataRaw[0].map(h => String(h).trim());
-    console.log('CABEÇALHOS LIDOS DA PLANILHA DE CALIBRAÇÃO:', headers);
 
     // Encontrar o nome correto das colunas usando os mapeamentos
     const snHeader = findHeaderName(headers, snColumnNames);
-    
     const dataValHeader = findHeaderName(headers, dataValColumnNames);
     const dataCalHeader = findHeaderName(headers, dataCalColumnNames);
-    console.log('SN_HEADER ENCONTRADO PELA LÓGICA:', snHeader);
+
     const equipamentoHeader = findHeaderName(headers, equipamentoColumnNames);
     const fabricanteHeader = findHeaderName(headers, fabricanteColumnNames);
     const modeloHeader = findHeaderName(headers, modeloColumnNames);
@@ -110,7 +91,7 @@ export const parseCalibrationSheet = (worksheet) => {
     return dataRows.map(row => {
         let obj = {};
         headers.forEach((header, index) => {
-            const value = row[index];
+            const value = row[index]; // Pega o valor bruto
 
             if (header === dataValHeader && typeof value === 'number') {
                 obj['DATA VAL'] = XLSX.SSF.format('mm/yyyy', value); 
