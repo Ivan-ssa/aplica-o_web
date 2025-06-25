@@ -1,18 +1,116 @@
 /* css/style.css */
-/* ... (seu CSS existente antes desta seção) ... */
+body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    background-color: #f4f4f4;
+    color: #333;
+}
+h1, h2 {
+    color: #0056b3;
+}
+#output {
+    margin-top: 20px;
+    border: 1px solid #ccc;
+    padding: 10px;
+    min-height: 100px;
+    background-color: #f9f9f9;
+    overflow-x: auto; /* Para garantir que o texto longo não quebre o layout */
+}
+input[type="file"] {
+    margin-bottom: 10px;
+    padding: 5px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+button {
+    padding: 10px 20px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s ease;
+}
+button:hover {
+    background-color: #0056b3;
+}
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+th, td {
+    border: 1px solid #ddd;
+    padding: 12px;
+    text-align: left;
+}
+th {
+    background-color: #e9ecef;
+    font-weight: bold;
+    color: #495057;
+}
+tr:nth-child(even) {
+    background-color: #f8f9fa; /* Mantido para linhas não destacadas */
+}
+tr:hover {
+    background-color: #e2e6ea;
+}
+#equipmentTableContainer {
+    margin-top: 30px;
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
+}
+#filterContainer {
+    margin-bottom: 20px;
+    padding: 15px;
+    background-color: #f0f8ff;
+    border: 1px solid #cfe2ff;
+    border-radius: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 15px;
+}
+#sectorFilter, #calibrationStatusFilter {
+    padding: 10px;
+    border: 1px solid #ced4da;
+    border-radius: 5px;
+    background-color: white;
+    min-width: 180px;
+}
+#equipmentCount {
+    font-weight: bold;
+    margin-left: auto;
+    padding: 5px 10px;
+    background-color: #e0f7fa;
+    border-radius: 5px;
+    color: #007bff;
+}
+#searchInput { /* Estilo para o campo de busca */
+    padding: 10px;
+    border: 1px solid #ced4da;
+    border-radius: 5px;
+    background-color: white;
+    min-width: 250px;
+    box-sizing: border-box; /* Garante que padding e border sejam incluídos na largura total */
+}
 
 /* Estilos para destaque das linhas */
 tr.not-calibrated {
     background-color: #ffcccc; /* Vermelho claro */
     border-left: 5px solid #d9534f; /* Borda vermelha */
 }
-tr.calibrated-dhme { /* Verde para Calibrado (DHMED) */
-    background-color: #b3e6b3; 
-    border-left: 5px solid #28a745; 
+tr.calibrated-dhme { /* Verde para Calibrado (DHMED) - MAIS FORTE */
+    background-color: #b3e6b3; /* Verde claro forte */
+    border-left: 5px solid #28a745; /* Borda verde mais escura */
 }
-tr.calibrated-sciencetech { /* Azul para Calibrado (Sciencetech) */
-    background-color: #b3d9ff; 
-    border-left: 5px solid #007bff; 
+tr.calibrated-sciencetech { /* Azul para Calibrado (Sciencetech) - MAIS FORTE */
+    background-color: #b3d9ff; /* Azul claro forte */
+    border-left: 5px solid #007bff; /* Borda azul mais escura */
 }
 tr.divergent-calibrated { /* Amarelo para Não Cadastrado (DHMED) */
     background-color: #fffacd; 
@@ -31,7 +129,6 @@ tr.in-external-maintenance {
     /* Você pode adicionar um background-color bem sutil aqui se quiser uma camada extra */
     /* background-color: rgba(200, 200, 200, 0.1); */ /* Cinza muito claro e quase transparente */
 }
-
 
 /* Estilo para calibração vencida (se você adicionar a lógica no JS) */
 tr.expired-calibration {
