@@ -29,10 +29,11 @@
             <label for="calibrationStatusFilter">Filtrar por Status de Calibração:</label>
             <select id="calibrationStatusFilter">
                 <option value="">Todos os Status</option>
-                <option value="Calibrado (DHME)">Calibrado (DHME)</option>
+                <option value="Calibrado (Total)">Calibrado (Total)</option>
+                <option value="Calibrado (DHMED)">Calibrado (DHMED)</option>
                 <option value="Calibrado (Sciencetech)">Calibrado (Sciencetech)</option>
                 <option value="Não Calibrado">Não Calibrado</option>
-                <option value="Não Cadastrado (DHME)">Não Cadastrado (DHME)</option>
+                <option value="Não Cadastrado (DHMED)">Não Cadastrado (DHMED)</option>
                 <option value="Não Cadastrado (Sciencetech)">Não Cadastrado (Sciencetech)</option>
             </select>
             <span id="equipmentCount">Total: 0 equipamentos</span>
@@ -63,7 +64,6 @@
     </div>
 
     <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
-
     <script type="module" src="js/main.js"></script>
 </body>
 </html>
