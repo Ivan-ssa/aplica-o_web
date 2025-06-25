@@ -104,15 +104,15 @@ tr.not-calibrated {
     background-color: #ffcccc; /* Vermelho claro */
     border-left: 5px solid #d9534f; /* Borda vermelha */
 }
-tr.calibrated-dhme { /* Verde para Calibrado (DHME) - MAIS FORTE */
+tr.calibrated-dhme { /* Verde para Calibrado (DHMED) - AGORA MAIS FORTE E CONSISTENTE */
     background-color: #b3e6b3; /* Verde claro forte */
     border-left: 5px solid #28a745; /* Borda verde mais escura */
 }
-tr.calibrated-sciencetech { /* Azul para Calibrado (Sciencetech) - MAIS FORTE */
+tr.calibrated-sciencetech { /* Azul para Calibrado (Sciencetech) - MAIS FORTE E CONSISTENTE */
     background-color: #b3d9ff; /* Azul claro forte */
     border-left: 5px solid #007bff; /* Borda azul mais escura */
 }
-tr.divergent-calibrated { /* Amarelo para Não Cadastrado (DHME) */
+tr.divergent-calibrated { /* Amarelo para Não Cadastrado (DHMED) */
     background-color: #fffacd; 
     border-left: 5px solid #ffcc00; 
 }
