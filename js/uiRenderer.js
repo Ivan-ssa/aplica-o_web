@@ -2,7 +2,7 @@
 export const renderEquipmentTable = (dataToRender, equipmentTableBody, equipmentCountSpan) => {
     equipmentTableBody.innerHTML = '';
     if (!dataToRender || dataToRender.length === 0) {
-        equipmentTableBody.innerHTML = '<tr><td colspan="10">Nenhum equipamento encontrado ou carregado.</td></tr>'; // Colspan ajustado para 10
+        equipmentTableBody.innerHTML = '<tr><td colspan="10">Nenhum equipamento encontrado ou carregado.</td></tr>'; 
         equipmentCountSpan.textContent = `Total: 0 equipamentos`;
         return;
     }
@@ -23,7 +23,7 @@ export const renderEquipmentTable = (dataToRender, equipmentTableBody, equipment
             row.classList.add('divergent-calibrated-sciencetech'); 
         } 
 
-        // NOVO: Aplicar classe CSS para Status de Manutenção
+        // Aplicar classe CSS para Status de Manutenção
         if (equipment.maintenanceStatus && equipment.maintenanceStatus !== 'Não Aplicável') {
             row.classList.add('in-external-maintenance'); 
         }
@@ -46,7 +46,6 @@ export const renderEquipmentTable = (dataToRender, equipmentTableBody, equipment
         const vencimentoCell = row.insertCell();
         vencimentoCell.textContent = equipment.nextCalibrationDate || 'N/A';
 
-        // NOVA CÉLULA PARA STATUS DE MANUTENÇÃO
         const maintenanceCell = row.insertCell();
         maintenanceCell.textContent = equipment.maintenanceStatus || '';
     });
