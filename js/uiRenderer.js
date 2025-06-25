@@ -10,19 +10,19 @@ export const renderEquipmentTable = (dataToRender, equipmentTableBody, equipment
     dataToRender.forEach(equipment => {
         const row = equipmentTableBody.insertRow();
         
-        // NOVO: Lógica de aplicação de classe CSS por status detalhado
+        // Lógica de aplicação de classe CSS por status detalhado
         if (equipment.calibrationStatus === 'Não Calibrado') {
-            row.classList.add('not-calibrated'); // Vermelho
+            row.classList.add('not-calibrated'); 
         } else if (equipment.calibrationStatus === 'Calibrado (DHME)') {
-            row.classList.add('calibrated-dhme'); // Verde
+            row.classList.add('calibrated-dhme'); 
         } else if (equipment.calibrationStatus === 'Calibrado (Sciencetech)') {
-            row.classList.add('calibrated-sciencetech'); // Azul
+            row.classList.add('calibrated-sciencetech'); 
         } else if (equipment.calibrationStatus === 'Não Cadastrado (DHME)') {
-            row.classList.add('divergent-calibrated'); // Amarelo (para divergências DHME)
+            row.classList.add('divergent-calibrated'); 
         } else if (equipment.calibrationStatus === 'Não Cadastrado (Sciencetech)') {
-            row.classList.add('divergent-calibrated-sciencetech'); // Outro tom de amarelo/laranja (para divergências Sciencetech)
+            row.classList.add('divergent-calibrated-sciencetech'); 
         } else {
-            // Caso algum status não esteja mapeado, não aplica cor
+            // Caso algum status não esteja mapeado, não aplica cor de fundo específica
         }
 
 
