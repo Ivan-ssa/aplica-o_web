@@ -9,7 +9,11 @@ const equipamentoColumnNames = ['EQUIPAMENTO', 'TIPO DE EQUIPAMENTO', 'NOME EQUI
 const fabricanteColumnNames = ['FABRICANTE', 'MARCA', 'MANUFACTURER'];
 const modeloColumnNames = ['MODELO', 'MODEL'];
 const patrimonioColumnNames = ['PATRIM', 'PATRIMONIO', 'ASSET TAG'];
-const tipoServicoColumnNames = ['TIPO SERVICO', 'TIPO_SERVICO', 'SERVICE TYPE'];
+const tipoServicoColumnNames = ['TIPO SERVICO', 'TIPO_SERVICO'];
+
+// NOVOS: Mapeamentos para Manutenção Externa
+const maintenanceSnPatrimColumnNames = ['Nº Série', 'NUMERO_SERIE', 'NUMERO DE SERIE', 'SN', 'PATRIMONIO', 'PATRIM', 'ASSET TAG'];
+const maintenanceStatusColumnNames = ['STATUS', 'STATUS_MANUTENCAO', 'SITUACAO', 'STATE'];
 
 
 // Função auxiliar para encontrar o nome da coluna correto (case-insensitive e trim)
@@ -58,6 +62,8 @@ export const parseEquipmentSheet = (worksheet) => {
         obj.calibrationStatus = 'Desconhecido';
         obj.calibrations = [];
         obj.nextCalibrationDate = 'N/A';
+        // NOVO: Inicializa o status de manutenção
+        obj.maintenanceStatus = 'Não Aplicável'; 
         return obj;
     });
 };
@@ -68,7 +74,6 @@ export const parseCalibrationSheet = (worksheet) => {
 
     const headers = jsonDataRaw[0].map(h => String(h).trim());
 
-    // Encontrar o nome correto das colunas usando os mapeamentos
     const snHeader = findHeaderName(headers, snColumnNames);
     const dataValHeader = findHeaderName(headers, dataValColumnNames);
     const dataCalHeader = findHeaderName(headers, dataCalColumnNames);
@@ -79,8 +84,6 @@ export const parseCalibrationSheet = (worksheet) => {
     const patrimonioHeader = findHeaderName(headers, patrimonioColumnNames);
     const tipoServicoHeader = findHeaderName(headers, tipoServicoColumnNames);
 
-
-    // Verifica se a coluna de Número de Série (SN) é essencial para identificar o item de calibração
     if (!snHeader) {
         console.warn("Planilha ignorada por não conter coluna de Número de Série essencial para calibração.");
         return [];
@@ -91,7 +94,7 @@ export const parseCalibrationSheet = (worksheet) => {
     return dataRows.map(row => {
         let obj = {};
         headers.forEach((header, index) => {
-            const value = row[index]; // Pega o valor bruto
+            const value = row[index];
 
             if (header === dataValHeader && typeof value === 'number') {
                 obj['DATA VAL'] = XLSX.SSF.format('mm/yyyy', value); 
@@ -112,6 +115,40 @@ export const parseCalibrationSheet = (worksheet) => {
         obj['TIPO SERVICO'] = obj[tipoServicoHeader] || ''; 
 
         obj['SN'] = String(obj['SN']).trim().replace(/^0+/, ''); 
+
+        return obj;
+    });
+};
+
+// NOVA FUNÇÃO: Parser para a Planilha de Manutenção Externa
+export const parseMaintenanceSheet = (worksheet) => {
+    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false, defval: '' });
+    if (jsonData.length === 0) return [];
+
+    const headers = jsonData[0].map(h => String(h).trim());
+
+    // Tenta encontrar o SN ou Patrimônio para identificar o equipamento
+    const idHeader = findHeaderName(headers, maintenanceSnPatrimColumnNames);
+    // Tenta encontrar a coluna de status de manutenção
+    const statusHeader = findHeaderName(headers, maintenanceStatusColumnNames);
+
+    // Essencial para identificar o item de manutenção
+    if (!idHeader || !statusHeader) {
+        console.warn("Planilha de Manutenção ignorada por não conter colunas essenciais (SN/Patrimônio e Status).");
+        return [];
+    }
+
+    const dataRows = jsonData.slice(1);
+
+    return dataRows.map(row => {
+        let obj = {};
+        headers.forEach((header, index) => {
+            obj[header] = row[index] !== undefined ? String(row[index]).trim() : '';
+        });
+        
+        // Padroniza as chaves importantes para manutenção
+        obj['SN_PATRIM_MANUTENCAO'] = (obj[idHeader] ? String(obj[idHeader]).replace(/^0+/, '').trim() : ''); // SN ou Patrimônio normalizado
+        obj['STATUS_MANUTENCAO_EXTERNA'] = obj[statusHeader] || 'Desconhecido'; // Status da manutenção
 
         return obj;
     });
