@@ -1,7 +1,7 @@
 // js/excelReader.js
 
 // Mapeamentos de nomes de colunas alternativos para as chaves padronizadas
-const snColumnNames = ['SN', 'NUMERO_SERIE', 'NUMERO DE SERIE', 'SERIAL_NUMBER', 'SERIAL NO', 'NÚMERO DE SÉRIE']; 
+const snColumnNames = ['SN', 'NUMERO_SERIE', 'NUMERO DE SERIE', 'SERIAL_NUMBER', 'SERIAL NO', 'NÚMERO DE SÉRIE', 'Nº Série', 'Nº DE SÉRIE']; 
 const dataValColumnNames = ['DATA VAL', 'DATA_VALIDADE', 'DATA VALIDADE', 'VALIDADE', 'VALIDITY_DATE', 'VENCIMENTO'];
 const dataCalColumnNames = ['DATA CAL', 'DATA_CALIBRACAO', 'DATA_CAL', 'DATA DE SAIDA', 'DATA DE CRIACAO'];
 
@@ -11,17 +11,11 @@ const modeloColumnNames = ['MODELO', 'MODEL'];
 const patrimonioColumnNames = ['PATRIM', 'PATRIMONIO', 'ASSET TAG'];
 const tipoServicoColumnNames = ['TIPO SERVICO', 'TIPO_SERVICO', 'SERVICE TYPE'];
 
-// NOVOS: Mapeamentos para Manutenção Externa
+// NOVOS: Mapeamentos para Manutenção Externa - Foco na coluna Q
 const maintenanceSnPatrimColumnNames = [
     'Nº Série', 'NUMERO_SERIE', 'NUMERO DE SERIE', 'SN', 'PATRIMONIO', 'PATRIM', 'ASSET TAG', 'SERIAL',
-    'NÚMERO DE SÉRIE',      
-    'N. DE SERIE',          
-    'N. DE SÉRIE',          
-    'N DE SERIE',           
-    'Nº SERIE',             
-    'N° DE SÉRIE',          
-    'N° DE SERIE',
-    'Nº de Série'           
+    'NÚMERO DE SÉRIE', 'N. DE SERIE', 'N. DE SÉRIE', 'N DE SERIE', 'Nº SERIE', 'N° DE SÉRIE', 'N° DE SERIE',
+    'ID', 'IDENTIFICADOR', 'CODIGO', 'CÓDIGO', 'ITEM', 'TAG' // Adicionei mais opções genéricas para a coluna Q
 ]; 
 const maintenanceStatusColumnNames = ['STATUS', 'STATUS_MANUTENCAO', 'SITUACAO', 'STATE', 'SITUATION']; 
 
@@ -30,7 +24,9 @@ const maintenanceStatusColumnNames = ['STATUS', 'STATUS_MANUTENCAO', 'SITUACAO',
 const normalizeIdForComparison = (id) => {
     if (!id) return '';
     // Remove zeros à esquerda, espaços, converte para minúsculas e REMOVE TUDO QUE NÃO FOR ALFANUMÉRICO (letras e números)
-    return String(id).replace(/^0+/, '').trim().toLowerCase().replace(/[^a-z0-9]/g, ''); 
+    let normalized = String(id).replace(/^0+/, '').trim().toLowerCase().replace(/[^a-z0-9]/g, ''); 
+    // console.log(`DEBUG: Normalizando '${id}' para '${normalized}'`); // DEBUG: Ver o processo de normalização
+    return normalized;
 };
 
 // Função auxiliar para encontrar o nome da coluna correto (case-insensitive, trim, e normalizado para acentos/especiais)
@@ -45,14 +41,19 @@ const findHeaderName = (headers, possibleNames) => {
     };
 
     const normalizedHeaders = headers.map(h => normalizeString(h));
+    // console.log('DEBUG: Cabeçalhos normalizados:', normalizedHeaders); // DEBUG: Ver cabeçalhos normalizados
 
     for (const name of possibleNames) {
         const normalizedName = normalizeString(name);
+        // console.log(`DEBUG: Tentando encontrar '${normalizedName}'`); // DEBUG: Ver nomes sendo procurados
         
         if (normalizedHeaders.includes(normalizedName)) {
-            return headers[normalizedHeaders.indexOf(normalizedName)];
+            const originalHeader = headers[normalizedHeaders.indexOf(normalizedName)];
+            // console.log(`DEBUG: Cabeçalho encontrado: '${originalHeader}' para nome normalizado '${normalizedName}'`); // DEBUG: Confirmação
+            return originalHeader;
         }
     }
+    // console.log(`DEBUG: Nenhum cabeçalho encontrado para os nomes possíveis:`, possibleNames); // DEBUG: Se não encontrar
     return null; 
 };
 
@@ -82,9 +83,10 @@ export const parseEquipmentSheet = (worksheet) => {
     if (jsonData.length === 0) return [];
 
     const headers = jsonData[0].map(h => String(h).trim());
+    // console.log('DEBUG: Headers da planilha Equipamentos:', headers); // DEBUG: Ver cabeçalhos originais
     const dataRows = jsonData.slice(1);
 
-    return dataRows.map(row => {
+    return dataRows.map((row, rowIndex) => {
         let obj = {};
         headers.forEach((header, index) => {
             const value = row[index] !== undefined ? String(row[index]).trim() : '';
@@ -99,6 +101,12 @@ export const parseEquipmentSheet = (worksheet) => {
         obj.calibrations = [];
         obj.nextCalibrationDate = 'N/A';
         obj.maintenanceStatus = 'Não Aplicável'; 
+        
+        // DEBUG: Log do Nº Série e Patrimônio normalizados para cada equipamento
+        // if (rowIndex < 5) { // Limitar para não inundar o console
+        //     console.log(`DEBUG Equipamento[${rowIndex}]: Nº Série original: '${row[headers.indexOf('Nº Série')] || ''}' -> Normalizado: '${obj['Nº Série']}'`);
+        //     console.log(`DEBUG Equipamento[${rowIndex}]: Patrimônio original: '${row[headers.indexOf('Patrimônio')] || ''}' -> Normalizado: '${obj['Patrimônio']}'`);
+        // }
         return obj;
     });
 };
@@ -164,13 +172,13 @@ export const parseMaintenanceSheet = (worksheet) => {
     }
 
     const headers = jsonData[0].map(h => String(h).trim());
-    console.log('DEBUG: Cabeçalhos da planilha de Manutenção:', headers); 
+    // console.log('DEBUG: Headers da planilha de Manutenção:', headers); // DEBUG: Ver cabeçalhos originais
     
     const idHeader = findHeaderName(headers, maintenanceSnPatrimColumnNames);
-    const statusHeader = findHeaderName(headers, maintenanceStatusColumnNames); // Manter statusHeader para logs
+    // const statusHeader = findHeaderName(headers, maintenanceStatusColumnNames); // Manter statusHeader para logs
 
-    console.log('DEBUG: idHeader encontrado para Manutenção:', idHeader); 
-    console.log('DEBUG: statusHeader encontrado para Manutenção:', statusHeader); 
+    // console.log('DEBUG: idHeader encontrado para Manutenção:', idHeader); 
+    // console.log('DEBUG: statusHeader encontrado para Manutenção:', statusHeader); 
 
     if (!idHeader) { // Validação agora é APENAS para idHeader
         console.warn("DEBUG: Planilha de Manutenção ignorada por não conter coluna de ID (SN/Patrimônio) essencial.");
@@ -178,15 +186,21 @@ export const parseMaintenanceSheet = (worksheet) => {
     }
 
     const dataRows = jsonData.slice(1);
-    console.log('DEBUG: Linhas de dados de Manutenção (dataRows):', dataRows); 
+    // console.log('DEBUG: Linhas de dados de Manutenção (dataRows):', dataRows); 
 
-    return dataRows.map(row => {
+    return dataRows.map((row, rowIndex) => {
         let obj = {};
         headers.forEach((header, index) => {
             obj[header] = row[index] !== undefined ? String(row[index]).trim() : '';
         });
         
         // Retorna o SN/Patrimônio normalizado
-        return normalizeIdForComparison( (obj[idHeader] || '') ); 
+        const originalSN = obj[idHeader] || '';
+        const normalizedSN = normalizeIdForComparison(originalSN);
+        // DEBUG: Log do SN normalizado para cada item de manutenção
+        // if (rowIndex < 5) { // Limitar para não inundar o console
+        //     console.log(`DEBUG Manutenção[${rowIndex}]: SN original: '${originalSN}' -> Normalizado: '${normalizedSN}'`);
+        // }
+        return normalizedSN;
     }).filter(id => id !== ''); 
 };
