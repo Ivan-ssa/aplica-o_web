@@ -12,8 +12,18 @@ const patrimonioColumnNames = ['PATRIM', 'PATRIMONIO', 'ASSET TAG'];
 const tipoServicoColumnNames = ['TIPO SERVICO', 'TIPO_SERVICO', 'SERVICE TYPE'];
 
 // NOVOS: Mapeamentos para Manutenção Externa
-const maintenanceSnPatrimColumnNames = ['Nº Série', 'NUMERO_SERIE', 'NUMERO DE SERIE', 'SN', 'PATRIMONIO', 'PATRIM', 'ASSET TAG', 'SERIAL']; // Adicionado 'SERIAL'
-const maintenanceStatusColumnNames = ['STATUS', 'STATUS_MANUTENCAO', 'SITUACAO', 'STATE', 'SITUATION']; // Adicionado 'SITUATION'
+// ATENÇÃO: Expandido para cobrir mais variações de 'Nº de Série'
+const maintenanceSnPatrimColumnNames = [
+    'Nº Série', 'NUMERO_SERIE', 'NUMERO DE SERIE', 'SN', 'PATRIMONIO', 'PATRIM', 'ASSET TAG', 'SERIAL',
+    'NÚMERO DE SÉRIE',      // Com acento e DE maiúsculo (como pode vir do Excel)
+    'N. DE SERIE',          // Com ponto, sem acento
+    'N. DE SÉRIE',          // Com ponto, com acento
+    'N DE SERIE',           // Sem "º", sem "de", sem acento
+    'Nº SERIE',             // Com "º", sem "de", sem acento
+    'N° DE SÉRIE',          // Usando o símbolo de grau (°) em vez de 'º'
+    'N° DE SERIE'           // Usando o símbolo de grau (°) e sem acento
+]; 
+const maintenanceStatusColumnNames = ['STATUS', 'STATUS_MANUTENCAO', 'SITUACAO', 'STATE', 'SITUATION']; 
 
 
 // Função auxiliar para encontrar o nome da coluna correto (case-insensitive e trim)
@@ -122,27 +132,27 @@ export const parseCalibrationSheet = (worksheet) => {
 // NOVA FUNÇÃO: Parser para a Planilha de Manutenção Externa
 export const parseMaintenanceSheet = (worksheet) => {
     const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false, defval: '' });
-    if (jsonData.length === 0) { // Adicionado log para ver se a planilha está vazia
-        console.warn("Planilha de Manutenção vazia ou sem dados após cabeçalho.");
+    if (jsonData.length === 0) { 
+        console.warn("DEBUG: Planilha de Manutenção vazia ou sem dados após cabeçalho.");
         return [];
     }
 
     const headers = jsonData[0].map(h => String(h).trim());
-    console.log('DEBUG: Cabeçalhos da planilha de Manutenção:', headers); // DEBUG
+    console.log('DEBUG: Cabeçalhos da planilha de Manutenção:', headers); 
     
     const idHeader = findHeaderName(headers, maintenanceSnPatrimColumnNames);
     const statusHeader = findHeaderName(headers, maintenanceStatusColumnNames);
 
-    console.log('DEBUG: idHeader encontrado para Manutenção:', idHeader); // DEBUG
-    console.log('DEBUG: statusHeader encontrado para Manutenção:', statusHeader); // DEBUG
+    console.log('DEBUG: idHeader encontrado para Manutenção:', idHeader); 
+    console.log('DEBUG: statusHeader encontrado para Manutenção:', statusHeader); 
 
     if (!idHeader || !statusHeader) {
-        console.warn("Planilha de Manutenção ignorada por não conter colunas essenciais (SN/Patrimônio e Status).");
+        console.warn("DEBUG: Planilha de Manutenção ignorada por não conter colunas essenciais (SN/Patrimônio e Status).");
         return [];
     }
 
     const dataRows = jsonData.slice(1);
-    console.log('DEBUG: Linhas de dados de Manutenção (dataRows):', dataRows); // DEBUG
+    console.log('DEBUG: Linhas de dados de Manutenção (dataRows):', dataRows); 
 
     return dataRows.map(row => {
         let obj = {};
