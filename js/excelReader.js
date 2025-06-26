@@ -1,7 +1,6 @@
 // js/excelReader.js
 
 // Mapeamentos de nomes de colunas alternativos para as chaves padronizadas
-// (Estas listas permanecem as mesmas, pois a normalização acontece na função findHeaderName)
 const snColumnNames = ['SN', 'NUMERO_SERIE', 'NUMERO DE SERIE', 'SERIAL_NUMBER', 'SERIAL NO', 'NÚMERO DE SÉRIE']; 
 const dataValColumnNames = ['DATA VAL', 'DATA_VALIDADE', 'DATA VALIDADE', 'VALIDADE', 'VALIDITY_DATE', 'VENCIMENTO'];
 const dataCalColumnNames = ['DATA CAL', 'DATA_CALIBRACAO', 'DATA_CAL', 'DATA DE SAIDA', 'DATA DE CRIACAO'];
@@ -12,6 +11,8 @@ const modeloColumnNames = ['MODELO', 'MODEL'];
 const patrimonioColumnNames = ['PATRIM', 'PATRIMONIO', 'ASSET TAG'];
 const tipoServicoColumnNames = ['TIPO SERVICO', 'TIPO_SERVICO', 'SERVICE TYPE'];
 
+// NOVOS: Mapeamentos para Manutenção Externa
+// maintenanceSnPatrimColumnNames permanece igual, já que busca o SN
 const maintenanceSnPatrimColumnNames = [
     'Nº Série', 'NUMERO_SERIE', 'NUMERO DE SERIE', 'SN', 'PATRIMONIO', 'PATRIM', 'ASSET TAG', 'SERIAL',
     'NÚMERO DE SÉRIE',      
@@ -23,38 +24,33 @@ const maintenanceSnPatrimColumnNames = [
     'N° DE SERIE',
     'Nº de Série'           
 ]; 
+// maintenanceStatusColumnNames não é mais usado por parseMaintenanceSheet
 const maintenanceStatusColumnNames = ['STATUS', 'STATUS_MANUTENCAO', 'SITUACAO', 'STATE', 'SITUATION']; 
 
 
-// FUNÇÃO AUXILIAR PARA ENCONTRAR O NOME DA COLUNA CORRETO (AGORA COM NORMALIZAÇÃO)
+// Função auxiliar para encontrar o nome da coluna correto (case-insensitive e trim)
 const findHeaderName = (headers, possibleNames) => {
-    // Função para normalizar uma string: remove acentos e caracteres especiais e converte para minúsculas
     const normalizeString = (str) => {
-        if (!str) return ''; // Garante que não é null ou undefined
+        if (!str) return '';
         return String(str).trim()
-            .normalize("NFD") // Decompoõe caracteres acentuados (e.g., 'á' para 'a' + acento)
-            .replace(/[\u0300-\u036f]/g, "") // Remove os acentos resultantes da decomposição
-            .toLowerCase() // Converte para minúsculas
-            .replace(/[^a-z0-9 ]/g, ''); // Remove caracteres não alfanuméricos (mantém espaços) - Opcional, pode ajustar
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .toLowerCase()
+            .replace(/[^a-z0-9 ]/g, ''); 
     };
 
-    // Normaliza todos os cabeçalhos da planilha para comparação
     const normalizedHeaders = headers.map(h => normalizeString(h));
 
     for (const name of possibleNames) {
-        // Normaliza cada nome possível da lista para comparação
         const normalizedName = normalizeString(name);
         
         if (normalizedHeaders.includes(normalizedName)) {
-            // Se encontrar uma correspondência normalizada, retorna o nome ORIGINAL do cabeçalho
             return headers[normalizedHeaders.indexOf(normalizedName)];
         }
     }
     return null; 
 };
 
-
-// ... (resto do código do excelReader.js permanece o mesmo a partir daqui) ...
 
 export const readFile = (file) => {
     return new Promise((resolve, reject) => {
@@ -147,7 +143,7 @@ export const parseCalibrationSheet = (worksheet) => {
     });
 };
 
-// NOVA FUNÇÃO: Parser para a Planilha de Manutenção Externa
+// NOVA FUNÇÃO: Parser para a Planilha de Manutenção Externa (APENAS SN/PATRIMÔNIO)
 export const parseMaintenanceSheet = (worksheet) => {
     const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false, defval: '' });
     if (jsonData.length === 0) { 
@@ -158,14 +154,15 @@ export const parseMaintenanceSheet = (worksheet) => {
     const headers = jsonData[0].map(h => String(h).trim());
     console.log('DEBUG: Cabeçalhos da planilha de Manutenção:', headers); 
     
+    // Agora, apenas idHeader é necessário
     const idHeader = findHeaderName(headers, maintenanceSnPatrimColumnNames);
-    const statusHeader = findHeaderName(headers, maintenanceStatusColumnNames);
+    // statusHeader não é mais necessário aqui, mas o log mostra que ele está sendo encontrado
 
-    console.log('DEBUG: idHeader encontrado para Manutenção:', idHeader); 
-    console.log('DEBUG: statusHeader encontrado para Manutenção:', statusHeader); 
+    console.log('DEBUG: idHeader encontrado para Manutenção (APENAS ID NECESSÁRIO):', idHeader); 
 
-    if (!idHeader || !statusHeader) {
-        console.warn("DEBUG: Planilha de Manutenção ignorada por não conter colunas essenciais (SN/Patrimônio e Status).");
+    // A validação agora é APENAS para o ID
+    if (!idHeader) {
+        console.warn("DEBUG: Planilha de Manutenção ignorada por não conter coluna de ID (SN/Patrimônio) essencial.");
         return [];
     }
 
@@ -178,9 +175,7 @@ export const parseMaintenanceSheet = (worksheet) => {
             obj[header] = row[index] !== undefined ? String(row[index]).trim() : '';
         });
         
-        obj['SN_PATRIM_MANUTENCAO'] = (obj[idHeader] ? String(obj[idHeader]).replace(/^0+/, '').trim() : ''); 
-        obj['STATUS_MANUTENCAO_EXTERNA'] = obj[statusHeader] || 'Desconhecido'; 
-
-        return obj;
-    });
+        // Retorna apenas o SN/Patrimônio normalizado
+        return (obj[idHeader] ? String(obj[idHeader]).replace(/^0+/, '').trim() : ''); 
+    }).filter(id => id !== ''); // Filtra IDs vazios
 };
