@@ -185,12 +185,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 const maintenanceSNsSet = new Set(tempMaintenanceSNs); 
                 window.tempMaintenanceSNs_DEBUG = Array.from(maintenanceSNsSet); // EXPOR PARA DEPURAÇÃO
 
-                allEquipmentData.forEach(eq => {
+                console.log('DEBUG: SNs de Manutenção (Set):', Array.from(maintenanceSNsSet)); // DEBUG: SNs de manutenção para comparação
+
+                allEquipmentData.forEach((eq, index) => {
                     // ATUALIZADO: Usar APENAS o Nº Série do equipamento para a comparação
                     const equipmentSNForMaintenance = (eq['Nº Série'] || ''); // Este já vem normalizado de excelReader.js (parseEquipmentSheet)
                     
+                    // DEBUG: Log do SN do equipamento e o resultado da busca
+                    // if (index < 10) { // Limitar para não inundar o console
+                    //     console.log(`DEBUG Equipamento[${index}]: SN para busca: '${equipmentSNForMaintenance}' - Encontrado em manutenção? ${maintenanceSNsSet.has(equipmentSNForMaintenance)}`);
+                    // }
+
                     if (equipmentSNForMaintenance && maintenanceSNsSet.has(equipmentSNForMaintenance)) {
                         eq.maintenanceStatus = 'Em Manutenção Externa'; 
+                        // console.log(`DEBUG: Equipamento ${eq.TAG || eq['Nº Série']} marcado como 'Em Manutenção Externa'`); // DEBUG: Confirmação de marcação
                     } else if (!eq.maintenanceStatus || eq.maintenanceStatus === 'Não Aplicável') { 
                         eq.maintenanceStatus = 'Não Aplicável';
                     }
@@ -214,7 +222,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 outputDiv.textContent += `\n\n--- Calibrações com Divergência (${newDivergentCalibrations.length}) ---`;
                 if (dhmedDivergences > 0) outputDiv.textContent += `\n  - DHMED: ${dhmedDivergences} (Status: "Não Cadastrado (DHMED)")`;
                 if (sciencetechDivergences > 0) outputDiv.textContent += `\n  - Sciencetech: ${sciencetechDivergences} (Status: "Não Cadastrado (Sciencetech)")`;
-                if (unknownDivergences > 0) outputDiv.textContent += `\n  - Desconhecida: ${unknownSidergences} (Status: "Não Cadastrado (Desconhecido)")`;
+                if (unknownDivergences > 0) outputDiv.textContent += `\n  - Desconhecida: ${unknownDivergences} (Status: "Não Cadastrado (Desconhecido)")`;
                 outputDiv.textContent += `\nListadas na tabela principal com o status correspondente.`;
             } else {
                 outputDiv.textContent += `\n\nNão foram encontradas calibrações sem equipamento correspondente.`;
