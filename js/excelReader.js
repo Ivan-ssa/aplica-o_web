@@ -1,6 +1,7 @@
 // js/excelReader.js
 
 // Mapeamentos de nomes de colunas alternativos para as chaves padronizadas
+// (Estas listas permanecem as mesmas, pois a normalização acontece na função findHeaderName)
 const snColumnNames = ['SN', 'NUMERO_SERIE', 'NUMERO DE SERIE', 'SERIAL_NUMBER', 'SERIAL NO', 'NÚMERO DE SÉRIE']; 
 const dataValColumnNames = ['DATA VAL', 'DATA_VALIDADE', 'DATA VALIDADE', 'VALIDADE', 'VALIDITY_DATE', 'VENCIMENTO'];
 const dataCalColumnNames = ['DATA CAL', 'DATA_CALIBRACAO', 'DATA_CAL', 'DATA DE SAIDA', 'DATA DE CRIACAO'];
@@ -11,8 +12,6 @@ const modeloColumnNames = ['MODELO', 'MODEL'];
 const patrimonioColumnNames = ['PATRIM', 'PATRIMONIO', 'ASSET TAG'];
 const tipoServicoColumnNames = ['TIPO SERVICO', 'TIPO_SERVICO', 'SERVICE TYPE'];
 
-// NOVOS: Mapeamentos para Manutenção Externa
-// ATENÇÃO: Adicionado 'Nº de Série' (exatamente como você informou)
 const maintenanceSnPatrimColumnNames = [
     'Nº Série', 'NUMERO_SERIE', 'NUMERO DE SERIE', 'SN', 'PATRIMONIO', 'PATRIM', 'ASSET TAG', 'SERIAL',
     'NÚMERO DE SÉRIE',      
@@ -22,22 +21,40 @@ const maintenanceSnPatrimColumnNames = [
     'Nº SERIE',             
     'N° DE SÉRIE',          
     'N° DE SERIE',
-    'Nº de Série'           // <--- ESTE É O NOVO TERMO EXATO QUE FALTAVA
+    'Nº de Série'           
 ]; 
 const maintenanceStatusColumnNames = ['STATUS', 'STATUS_MANUTENCAO', 'SITUACAO', 'STATE', 'SITUATION']; 
 
 
-// Função auxiliar para encontrar o nome da coluna correto (case-insensitive e trim)
+// FUNÇÃO AUXILIAR PARA ENCONTRAR O NOME DA COLUNA CORRETO (AGORA COM NORMALIZAÇÃO)
 const findHeaderName = (headers, possibleNames) => {
-    const lowerCaseHeaders = headers.map(h => h.toLowerCase()); 
+    // Função para normalizar uma string: remove acentos e caracteres especiais e converte para minúsculas
+    const normalizeString = (str) => {
+        if (!str) return ''; // Garante que não é null ou undefined
+        return String(str).trim()
+            .normalize("NFD") // Decompoõe caracteres acentuados (e.g., 'á' para 'a' + acento)
+            .replace(/[\u0300-\u036f]/g, "") // Remove os acentos resultantes da decomposição
+            .toLowerCase() // Converte para minúsculas
+            .replace(/[^a-z0-9 ]/g, ''); // Remove caracteres não alfanuméricos (mantém espaços) - Opcional, pode ajustar
+    };
+
+    // Normaliza todos os cabeçalhos da planilha para comparação
+    const normalizedHeaders = headers.map(h => normalizeString(h));
+
     for (const name of possibleNames) {
-        if (lowerCaseHeaders.includes(name.toLowerCase())) { 
-            return headers[lowerCaseHeaders.indexOf(name.toLowerCase())];
+        // Normaliza cada nome possível da lista para comparação
+        const normalizedName = normalizeString(name);
+        
+        if (normalizedHeaders.includes(normalizedName)) {
+            // Se encontrar uma correspondência normalizada, retorna o nome ORIGINAL do cabeçalho
+            return headers[normalizedHeaders.indexOf(normalizedName)];
         }
     }
     return null; 
 };
 
+
+// ... (resto do código do excelReader.js permanece o mesmo a partir daqui) ...
 
 export const readFile = (file) => {
     return new Promise((resolve, reject) => {
