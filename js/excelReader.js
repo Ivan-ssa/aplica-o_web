@@ -12,16 +12,17 @@ const patrimonioColumnNames = ['PATRIM', 'PATRIMONIO', 'ASSET TAG'];
 const tipoServicoColumnNames = ['TIPO SERVICO', 'TIPO_SERVICO', 'SERVICE TYPE'];
 
 // NOVOS: Mapeamentos para Manutenção Externa
-// ATENÇÃO: Expandido para cobrir mais variações de 'Nº de Série'
+// ATENÇÃO: Adicionado 'Nº de Série' (exatamente como você informou)
 const maintenanceSnPatrimColumnNames = [
     'Nº Série', 'NUMERO_SERIE', 'NUMERO DE SERIE', 'SN', 'PATRIMONIO', 'PATRIM', 'ASSET TAG', 'SERIAL',
-    'NÚMERO DE SÉRIE',      // Com acento e DE maiúsculo (como pode vir do Excel)
-    'N. DE SERIE',          // Com ponto, sem acento
-    'N. DE SÉRIE',          // Com ponto, com acento
-    'N DE SERIE',           // Sem "º", sem "de", sem acento
-    'Nº SERIE',             // Com "º", sem "de", sem acento
-    'N° DE SÉRIE',          // Usando o símbolo de grau (°) em vez de 'º'
-    'N° DE SERIE'           // Usando o símbolo de grau (°) e sem acento
+    'NÚMERO DE SÉRIE',      
+    'N. DE SERIE',          
+    'N. DE SÉRIE',          
+    'N DE SERIE',           
+    'Nº SERIE',             
+    'N° DE SÉRIE',          
+    'N° DE SERIE',
+    'Nº de Série'           // <--- ESTE É O NOVO TERMO EXATO QUE FALTAVA
 ]; 
 const maintenanceStatusColumnNames = ['STATUS', 'STATUS_MANUTENCAO', 'SITUACAO', 'STATE', 'SITUATION']; 
 
