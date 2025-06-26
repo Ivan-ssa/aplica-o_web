@@ -54,8 +54,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (searchTerm !== "") {
             filteredData = filteredData.filter(eq => {
                 const tag = String(eq.TAG || '').toLowerCase();
-                const serial = String(eq['Nº Série'] || '').replace(/^0+/, '').toLowerCase(); 
-                const patrimonio = String(eq.Patrimônio || '').toLowerCase();
+                const serial = String(eq['Nº Série'] || '').toLowerCase(); // Já normalizado em excelReader
+                const patrimonio = String(eq.Patrimônio || '').toLowerCase(); // Já normalizado em excelReader
 
                 // Busca em TAG, Nº Série (normalizado) ou Patrimônio
                 return tag.includes(searchTerm) || serial.includes(searchTerm) || patrimonio.includes(searchTerm);
@@ -151,7 +151,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
 
                     // LÓGICA DE IDENTIFICAÇÃO DE MANUTENÇÃO EXTERNA - ATUALIZADA
-                    // A string 'manu_externa' foi adicionada aqui para reconhecimento do nome do arquivo
                     if (lowerCaseFileName.includes('manutencao_externa') || lowerCaseSheetName.includes('manutencao_externa') || 
                         lowerCaseSheetName.includes('man_ext') || lowerCaseSheetName.includes('manut_ext') ||
                         lowerCaseFileName.includes('manu_externa') || lowerCaseSheetName.includes('manu_externa')) { 
@@ -182,19 +181,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // CRUZAMENTO PARA MANUTENÇÃO EXTERNA
             if (tempMaintenanceSNs.length > 0) {
-                // Função para normalizar IDs (remover tudo que não for alfanumérico)
-                const normalizeId = (id) => {
-                    if (!id) return '';
-                    // Remove zeros à esquerda, espaços, converte para minúsculas e REMOVE TUDO QUE NÃO FOR ALFANUMÉRICO (letras e números)
-                    return String(id).replace(/^0+/, '').trim().toLowerCase().replace(/[^a-z0-9]/g, ''); 
-                };
-
-                const maintenanceSNsSet = new Set(tempMaintenanceSNs.map(normalizeId)); 
+                // tempMaintenanceSNs já vêm normalizados de excelReader.js
+                const maintenanceSNsSet = new Set(tempMaintenanceSNs); 
                 window.tempMaintenanceSNs_DEBUG = Array.from(maintenanceSNsSet); // EXPOR PARA DEPURAÇÃO
 
                 allEquipmentData.forEach(eq => {
-                    // Normaliza o ID do equipamento para a comparação
-                    const equipmentId = normalizeId( (eq['Nº Série'] || '') || (eq.Patrimônio || '') );
+                    // IDs do equipamento já estão normalizados em excelReader.js (parseEquipmentSheet)
+                    const equipmentId = (eq['Nº Série'] || '') || (eq.Patrimônio || ''); 
                     
                     if (equipmentId && maintenanceSNsSet.has(equipmentId)) {
                         eq.maintenanceStatus = 'Em Manutenção Externa'; 
