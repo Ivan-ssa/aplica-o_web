@@ -12,7 +12,6 @@ const patrimonioColumnNames = ['PATRIM', 'PATRIMONIO', 'ASSET TAG'];
 const tipoServicoColumnNames = ['TIPO SERVICO', 'TIPO_SERVICO', 'SERVICE TYPE'];
 
 // NOVOS: Mapeamentos para Manutenção Externa
-// maintenanceSnPatrimColumnNames permanece igual, já que busca o SN
 const maintenanceSnPatrimColumnNames = [
     'Nº Série', 'NUMERO_SERIE', 'NUMERO DE SERIE', 'SN', 'PATRIMONIO', 'PATRIM', 'ASSET TAG', 'SERIAL',
     'NÚMERO DE SÉRIE',      
@@ -24,19 +23,25 @@ const maintenanceSnPatrimColumnNames = [
     'N° DE SERIE',
     'Nº de Série'           
 ]; 
-// maintenanceStatusColumnNames não é mais usado por parseMaintenanceSheet
 const maintenanceStatusColumnNames = ['STATUS', 'STATUS_MANUTENCAO', 'SITUACAO', 'STATE', 'SITUATION']; 
 
 
-// Função auxiliar para encontrar o nome da coluna correto (case-insensitive e trim)
+// Função para normalizar IDs (removida do main.js, agora aqui para uso geral)
+const normalizeIdForComparison = (id) => {
+    if (!id) return '';
+    // Remove zeros à esquerda, espaços, converte para minúsculas e REMOVE TUDO QUE NÃO FOR ALFANUMÉRICO (letras e números)
+    return String(id).replace(/^0+/, '').trim().toLowerCase().replace(/[^a-z0-9]/g, ''); 
+};
+
+// Função auxiliar para encontrar o nome da coluna correto (case-insensitive, trim, e normalizado para acentos/especiais)
 const findHeaderName = (headers, possibleNames) => {
     const normalizeString = (str) => {
-        if (!str) return '';
+        if (!str) return ''; 
         return String(str).trim()
-            .normalize("NFD")
-            .replace(/[\u0300-\u036f]/g, "")
-            .toLowerCase()
-            .replace(/[^a-z0-9 ]/g, ''); 
+            .normalize("NFD") 
+            .replace(/[\u0300-\u036f]/g, "") 
+            .toLowerCase() 
+            .replace(/[^a-z0-9 ]/g, ''); // Mantém espaços para nomes de colunas com espaço
     };
 
     const normalizedHeaders = headers.map(h => normalizeString(h));
@@ -71,6 +76,7 @@ export const readFile = (file) => {
     });
 };
 
+// Modificado: parseEquipmentSheet agora normaliza IDs para o formato de comparação
 export const parseEquipmentSheet = (worksheet) => {
     const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false, defval: '' });
     if (jsonData.length === 0) return [];
@@ -81,7 +87,13 @@ export const parseEquipmentSheet = (worksheet) => {
     return dataRows.map(row => {
         let obj = {};
         headers.forEach((header, index) => {
-            obj[header] = row[index] !== undefined ? String(row[index]).trim() : '';
+            const value = row[index] !== undefined ? String(row[index]).trim() : '';
+            // NOVO: Normalizar Nº Série e Patrimônio AQUI com a função dedicada
+            if (header === 'Nº Série' || header === 'Patrimônio') { 
+                obj[header] = normalizeIdForComparison(value);
+            } else {
+                obj[header] = value;
+            }
         });
         obj.calibrationStatus = 'Desconhecido';
         obj.calibrations = [];
@@ -126,8 +138,10 @@ export const parseCalibrationSheet = (worksheet) => {
             }
             obj[header] = value !== undefined ? String(value).trim() : '';
         });
+        
+        // NOVO: Normalizar SN de calibração aqui também para consistência
+        obj['SN'] = normalizeIdForComparison(obj[snHeader] || ''); 
 
-        obj['SN'] = obj[snHeader] || ''; 
         obj['DATA VAL'] = obj['DATA VAL'] || (dataValHeader ? obj[dataValHeader] : 'N/A'); 
         obj['DATA CAL'] = obj['DATA CAL'] || (dataCalHeader ? obj[dataCalHeader] : 'N/A'); 
         
@@ -137,13 +151,11 @@ export const parseCalibrationSheet = (worksheet) => {
         obj['PATRIM'] = obj[patrimonioHeader] || ''; 
         obj['TIPO SERVICO'] = obj[tipoServicoHeader] || ''; 
 
-        obj['SN'] = String(obj['SN']).trim().replace(/^0+/, ''); 
-
         return obj;
     });
 };
 
-// NOVA FUNÇÃO: Parser para a Planilha de Manutenção Externa (APENAS SN/PATRIMÔNIO)
+// Parser para a Planilha de Manutenção Externa (retorna SNs normalizados)
 export const parseMaintenanceSheet = (worksheet) => {
     const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false, defval: '' });
     if (jsonData.length === 0) { 
@@ -154,14 +166,13 @@ export const parseMaintenanceSheet = (worksheet) => {
     const headers = jsonData[0].map(h => String(h).trim());
     console.log('DEBUG: Cabeçalhos da planilha de Manutenção:', headers); 
     
-    // Agora, apenas idHeader é necessário
     const idHeader = findHeaderName(headers, maintenanceSnPatrimColumnNames);
-    // statusHeader não é mais necessário aqui, mas o log mostra que ele está sendo encontrado
+    const statusHeader = findHeaderName(headers, maintenanceStatusColumnNames); // Manter statusHeader para logs
 
-    console.log('DEBUG: idHeader encontrado para Manutenção (APENAS ID NECESSÁRIO):', idHeader); 
+    console.log('DEBUG: idHeader encontrado para Manutenção:', idHeader); 
+    console.log('DEBUG: statusHeader encontrado para Manutenção:', statusHeader); 
 
-    // A validação agora é APENAS para o ID
-    if (!idHeader) {
+    if (!idHeader) { // Validação agora é APENAS para idHeader
         console.warn("DEBUG: Planilha de Manutenção ignorada por não conter coluna de ID (SN/Patrimônio) essencial.");
         return [];
     }
@@ -175,7 +186,7 @@ export const parseMaintenanceSheet = (worksheet) => {
             obj[header] = row[index] !== undefined ? String(row[index]).trim() : '';
         });
         
-        // Retorna apenas o SN/Patrimônio normalizado
-        return (obj[idHeader] ? String(obj[idHeader]).replace(/^0+/, '').trim() : ''); 
-    }).filter(id => id !== ''); // Filtra IDs vazios
+        // Retorna o SN/Patrimônio normalizado
+        return normalizeIdForComparison( (obj[idHeader] || '') ); 
+    }).filter(id => id !== ''); 
 };
