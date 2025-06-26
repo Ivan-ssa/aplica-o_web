@@ -1,20 +1,8 @@
 // js/main.js
-import { readFile, parseEquipmentSheet, parseCalibrationSheet, parseMaintenanceSheet } from './excelReader.js';
-import { crossReferenceData } from './dataProcessor.js';
-import { renderEquipmentTable, populateSectorFilter } from './uiRenderer.js';
-import { exportTableToExcel } from './excelExporter.js';
+// ... (imports e outras declarações de consts e let) ...
 
 document.addEventListener('DOMContentLoaded', () => {
-    const fileInput = document.getElementById('excelFileInput');
-    const processButton = document.getElementById('processButton');
-    const outputDiv = document.getElementById('output');
-    const equipmentTableBody = document.querySelector('#equipmentTable tbody');
-    const sectorFilter = document.getElementById('sectorFilter');
-    const calibrationStatusFilter = document.getElementById('calibrationStatusFilter');
-    const equipmentCountSpan = document.getElementById('equipmentCount');
-    const exportButton = document.getElementById('exportButton');
-    const searchInput = document.getElementById('searchInput');
-    const maintenanceFilter = document.getElementById('maintenanceFilter');
+    // ... (restante do código até o processButton.addEventListener) ...
 
     let allEquipmentData = [];
     let originalEquipmentData = [];
@@ -22,93 +10,18 @@ document.addEventListener('DOMContentLoaded', () => {
     let allMaintenanceData = []; 
     let currentlyDisplayedData = [];
 
+    // EXPOR VARIÁVEIS GLOBAIS PARA DEPURAÇÃO
     window.allEquipmentData = allEquipmentData; 
+    window.tempMaintenanceSNs_DEBUG = null; // NOVO: Para expor os SNs lidos da manutenção
 
-    const applyFilters = () => {
-        let filteredData = allEquipmentData;
-        const selectedSector = sectorFilter.value;
-        const selectedCalibrationStatus = calibrationStatusFilter.value;
-        const selectedMaintenanceStatus = maintenanceFilter.value; 
-        const searchTerm = searchInput.value.trim().toLowerCase();
-
-        if (selectedSector !== "") {
-            filteredData = filteredData.filter(eq => eq.Setor && eq.Setor.trim() === selectedSector);
-        }
-
-        if (selectedCalibrationStatus !== "") {
-            if (selectedCalibrationStatus === "Calibrado (Total)") {
-                filteredData = filteredData.filter(eq => 
-                    eq.calibrationStatus.startsWith("Calibrado (") 
-                );
-            } else {
-                filteredData = filteredData.filter(eq => eq.calibrationStatus === selectedCalibrationStatus);
-            }
-        }
-
-        // NOVO: Lógica de filtro para manutenção
-        if (selectedMaintenanceStatus !== "") {
-            filteredData = filteredData.filter(eq => eq.maintenanceStatus === selectedMaintenanceStatus);
-        }
-
-        if (searchTerm !== "") {
-            filteredData = filteredData.filter(eq => {
-                const tag = String(eq.TAG || '').toLowerCase();
-                const serial = String(eq['Nº Série'] || '').replace(/^0+/, '').toLowerCase();
-                const patrimonio = String(eq.Patrimônio || '').toLowerCase();
-                return tag.includes(searchTerm) || serial.includes(searchTerm) || patrimonio.includes(searchTerm);
-            });
-        }
-
-        currentlyDisplayedData = filteredData;
-        renderEquipmentTable(filteredData, equipmentTableBody, equipmentCountSpan);
-    };
-
-    sectorFilter.addEventListener('change', applyFilters);
-    calibrationStatusFilter.addEventListener('change', applyFilters);
-    maintenanceFilter.addEventListener('change', applyFilters); // Listener para o filtro de manutenção
-    
-    if (searchInput) {
-        searchInput.addEventListener('input', applyFilters); 
-    } else {
-        console.error("Elemento com ID 'searchInput' não encontrado! Verifique o index.html."); 
-    }
-
-    if (exportButton) {
-        exportButton.addEventListener('click', () => {
-            if (currentlyDisplayedData.length > 0) {
-                exportTableToExcel(currentlyDisplayedData, 'Equipamentos_Calibacao_Filtrados');
-                outputDiv.textContent = 'Exportando dados para Excel...';
-            } else {
-                outputDiv.textContent = 'Não há dados para exportar. Por favor, carregue e processe os arquivos primeiro.';
-            }
-        });
-    } else {
-        console.error("Elemento com ID 'exportButton' não encontrado! Verifique o index.html."); 
-    }
+    // ... (resto do código igual) ...
 
     processButton.addEventListener('click', async () => {
-        const files = fileInput.files;
-        if (files.length === 0) {
-            outputDiv.textContent = 'Por favor, selecione pelo menos um arquivo Excel.';
-            return;
-        }
-
-        outputDiv.textContent = 'Processando arquivos...';
-        allEquipmentData = [];
-        originalEquipmentData = [];
-        allCalibrationData = [];
-        allMaintenanceData = []; 
-        equipmentTableBody.innerHTML = '';
-        sectorFilter.innerHTML = '<option value="">Todos os Setores</option>';
-        calibrationStatusFilter.value = "";
-        maintenanceFilter.value = ""; // Resetar filtro de manutenção
-        equipmentCountSpan.textContent = `Total: 0 equipamentos`;
-        currentlyDisplayedData = [];
-        if (searchInput) searchInput.value = ''; 
+        // ... (código de processamento, incluindo reset de variáveis) ...
 
         let tempEquipmentData = []; 
         let tempCalibrationData = []; 
-        let tempMaintenanceSNs = []; // NOVO: Array para armazenar APENAS os SNs de manutenção
+        let tempMaintenanceSNs = []; // Array que armazena os SNs da manutenção
 
         try {
             const fileResults = await Promise.all(Array.from(files).map(readFile));
@@ -177,13 +90,13 @@ document.addEventListener('DOMContentLoaded', () => {
             // CRUZAMENTO PARA MANUTENÇÃO EXTERNA (AGORA COM SET DE SNs)
             if (tempMaintenanceSNs.length > 0) {
                 const maintenanceSNsSet = new Set(tempMaintenanceSNs); // Converte para Set para busca rápida
+                window.tempMaintenanceSNs_DEBUG = Array.from(maintenanceSNsSet); // NOVO: Expor para depuração
 
                 allEquipmentData.forEach(eq => {
                     const equipmentId = (eq['Nº Série'] ? String(eq['Nº Série']).replace(/^0+/, '').trim() : '') || (eq.Patrimônio ? String(eq.Patrimônio).trim() : '');
                     
-                    // Se o ID do equipamento estiver no Set de SNs de manutenção
                     if (equipmentId && maintenanceSNsSet.has(equipmentId)) {
-                        eq.maintenanceStatus = 'Em Manutenção Externa'; // Status fixo
+                        eq.maintenanceStatus = 'Em Manutenção Externa'; 
                     } else if (!eq.maintenanceStatus || eq.maintenanceStatus === 'Não Aplicável') { 
                         eq.maintenanceStatus = 'Não Aplicável';
                     }
