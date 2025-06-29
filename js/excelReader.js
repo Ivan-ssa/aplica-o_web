@@ -1,7 +1,7 @@
 // js/excelReader.js
 
 // Mapeamentos de nomes de colunas alternativos para as chaves padronizadas
-const snColumnNames = ['SN', 'NUMERO_SERIE', 'NUMERO DE SERIE', 'SERIAL_NUMBER', 'SERIAL NO', 'NÚMERO DE SÉRIE', 'Nº Série', 'Nº DE SÉRIE']; 
+const snColumnNames = ['SN', 'NUMERO_SERIE', 'NUMERO DE SERIE', 'SERIAL_NUMBER', 'SERIAL NO', 'NÚMERO DE SÉRIE', 'Nº Série', 'Nº DE SÉRIE'];
 const dataValColumnNames = ['DATA VAL', 'DATA_VALIDADE', 'DATA VALIDADE', 'VALIDADE', 'VALIDITY_DATE', 'VENCIMENTO'];
 const dataCalColumnNames = ['DATA CAL', 'DATA_CALIBRACAO', 'DATA_CAL', 'DATA DE SAIDA', 'DATA DE CRIACAO'];
 
@@ -16,15 +16,15 @@ const maintenanceSnPatrimColumnNames = [
     'Nº Série', 'NUMERO_SERIE', 'NUMERO DE SERIE', 'SN', 'PATRIMONIO', 'PATRIM', 'ASSET TAG', 'SERIAL',
     'NÚMERO DE SÉRIE', 'N. DE SERIE', 'N. DE SÉRIE', 'N DE SERIE', 'Nº SERIE', 'N° DE SÉRIE', 'N° DE SERIE',
     'ID', 'IDENTIFICADOR', 'CODIGO', 'CÓDIGO', 'ITEM', 'TAG' // Adicionei mais opções genéricas para a coluna Q
-]; 
-const maintenanceStatusColumnNames = ['STATUS', 'STATUS_MANUTENCAO', 'SITUACAO', 'STATE', 'SITUATION']; 
+];
+const maintenanceStatusColumnNames = ['STATUS', 'STATUS_MANUTENCAO', 'SITUACAO', 'STATE', 'SITUATION'];
 
 
 // Função para normalizar IDs (removida do main.js, agora aqui para uso geral)
 const normalizeIdForComparison = (id) => {
     if (!id) return '';
     // Remove zeros à esquerda, espaços, converte para minúsculas e REMOVE TUDO QUE NÃO FOR ALFANUMÉRICO (letras e números)
-    let normalized = String(id).replace(/^0+/, '').trim().toLowerCase().replace(/[^a-z0-9]/g, ''); 
+    let normalized = String(id).replace(/^0+/, '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
     // console.log(`DEBUG: Normalizando '${id}' para '${normalized}'`); // DEBUG: Ver o processo de normalização
     return normalized;
 };
@@ -32,11 +32,11 @@ const normalizeIdForComparison = (id) => {
 // Função auxiliar para encontrar o nome da coluna correto (case-insensitive, trim, e normalizado para acentos/especiais)
 const findHeaderName = (headers, possibleNames) => {
     const normalizeString = (str) => {
-        if (!str) return ''; 
+        if (!str) return '';
         return String(str).trim()
-            .normalize("NFD") 
-            .replace(/[\u0300-\u036f]/g, "") 
-            .toLowerCase() 
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .toLowerCase()
             .replace(/[^a-z0-9 ]/g, ''); // Mantém espaços para nomes de colunas com espaço
     };
 
@@ -46,7 +46,7 @@ const findHeaderName = (headers, possibleNames) => {
     for (const name of possibleNames) {
         const normalizedName = normalizeString(name);
         // console.log(`DEBUG: Tentando encontrar '${normalizedName}'`); // DEBUG: Ver nomes sendo procurados
-        
+
         if (normalizedHeaders.includes(normalizedName)) {
             const originalHeader = headers[normalizedHeaders.indexOf(normalizedName)];
             // console.log(`DEBUG: Cabeçalho encontrado: '${originalHeader}' para nome normalizado '${normalizedName}'`); // DEBUG: Confirmação
@@ -54,7 +54,7 @@ const findHeaderName = (headers, possibleNames) => {
         }
     }
     // console.log(`DEBUG: Nenhum cabeçalho encontrado para os nomes possíveis:`, possibleNames); // DEBUG: Se não encontrar
-    return null; 
+    return null;
 };
 
 
@@ -90,8 +90,11 @@ export const parseEquipmentSheet = (worksheet) => {
         let obj = {};
         headers.forEach((header, index) => {
             const value = row[index] !== undefined ? String(row[index]).trim() : '';
-            // NOVO: Normalizar Nº Série e Patrimônio AQUI com a função dedicada
-            if (header === 'Nº Série' || header === 'Patrimônio') { 
+            // NOVO: Armazenar o valor original do Nº Série, mas normalizar o valor principal para busca
+            if (header === 'Nº Série') {
+                obj['Nº Série Original'] = value; // Guarda o valor original para exibição
+                obj[header] = normalizeIdForComparison(value); // Normaliza para a busca e processamento
+            } else if (header === 'Patrimônio') { // Patrimônio SÓ é normalizado, sem guardar o original
                 obj[header] = normalizeIdForComparison(value);
             } else {
                 obj[header] = value;
@@ -100,8 +103,8 @@ export const parseEquipmentSheet = (worksheet) => {
         obj.calibrationStatus = 'Desconhecido';
         obj.calibrations = [];
         obj.nextCalibrationDate = 'N/A';
-        obj.maintenanceStatus = 'Não Aplicável'; 
-        
+        obj.maintenanceStatus = 'Não Aplicável';
+
         // DEBUG: Log do Nº Série e Patrimônio normalizados para cada equipamento
         // if (rowIndex < 5) { // Limitar para não inundar o console
         //     console.log(`DEBUG Equipamento[${rowIndex}]: Nº Série original: '${row[headers.indexOf('Nº Série')] || ''}' -> Normalizado: '${obj['Nº Série']}'`);
@@ -140,24 +143,24 @@ export const parseCalibrationSheet = (worksheet) => {
             const value = row[index];
 
             if (header === dataValHeader && typeof value === 'number') {
-                obj['DATA VAL'] = XLSX.SSF.format('mm/yyyy', value); 
+                obj['DATA VAL'] = XLSX.SSF.format('mm/yyyy', value);
             } else if (header === dataCalHeader && typeof value === 'number') {
-                obj['DATA CAL'] = XLSX.SSF.format('dd/mm/yyyy', value); 
+                obj['DATA CAL'] = XLSX.SSF.format('dd/mm/yyyy', value);
             }
             obj[header] = value !== undefined ? String(value).trim() : '';
         });
-        
-        // NOVO: Normalizar SN de calibração aqui também para consistência
-        obj['SN'] = normalizeIdForComparison(obj[snHeader] || ''); 
 
-        obj['DATA VAL'] = obj['DATA VAL'] || (dataValHeader ? obj[dataValHeader] : 'N/A'); 
-        obj['DATA CAL'] = obj['DATA CAL'] || (dataCalHeader ? obj[dataCalHeader] : 'N/A'); 
-        
-        obj['EQUIPAMENTO'] = obj[equipamentoHeader] || ''; 
-        obj['FABRICANTE'] = obj[fabricanteHeader] || ''; 
-        obj['MODELO'] = obj[modeloHeader] || ''; 
-        obj['PATRIM'] = obj[patrimonioHeader] || ''; 
-        obj['TIPO SERVICO'] = obj[tipoServicoHeader] || ''; 
+        // NOVO: Normalizar SN de calibração aqui também para consistência
+        obj['SN'] = normalizeIdForComparison(obj[snHeader] || '');
+
+        obj['DATA VAL'] = obj['DATA VAL'] || (dataValHeader ? obj[dataValHeader] : 'N/A');
+        obj['DATA CAL'] = obj['DATA CAL'] || (dataCalHeader ? obj[dataCalHeader] : 'N/A');
+
+        obj['EQUIPAMENTO'] = obj[equipamentoHeader] || '';
+        obj['FABRICANTE'] = obj[fabricanteHeader] || '';
+        obj['MODELO'] = obj[modeloHeader] || '';
+        obj['PATRIM'] = obj[patrimonioHeader] || '';
+        obj['TIPO SERVICO'] = obj[tipoServicoHeader] || '';
 
         return obj;
     });
@@ -166,19 +169,19 @@ export const parseCalibrationSheet = (worksheet) => {
 // Parser para a Planilha de Manutenção Externa (retorna SNs normalizados)
 export const parseMaintenanceSheet = (worksheet) => {
     const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false, defval: '' });
-    if (jsonData.length === 0) { 
+    if (jsonData.length === 0) {
         console.warn("DEBUG: Planilha de Manutenção vazia ou sem dados após cabeçalho.");
         return [];
     }
 
     const headers = jsonData[0].map(h => String(h).trim());
     // console.log('DEBUG: Headers da planilha de Manutenção:', headers); // DEBUG: Ver cabeçalhos originais
-    
+
     const idHeader = findHeaderName(headers, maintenanceSnPatrimColumnNames);
     // const statusHeader = findHeaderName(headers, maintenanceStatusColumnNames); // Manter statusHeader para logs
 
-    // console.log('DEBUG: idHeader encontrado para Manutenção:', idHeader); 
-    // console.log('DEBUG: statusHeader encontrado para Manutenção:', statusHeader); 
+    // console.log('DEBUG: idHeader encontrado para Manutenção:', idHeader);
+    // console.log('DEBUG: statusHeader encontrado para Manutenção:', statusHeader);
 
     if (!idHeader) { // Validação agora é APENAS para idHeader
         console.warn("DEBUG: Planilha de Manutenção ignorada por não conter coluna de ID (SN/Patrimônio) essencial.");
@@ -186,14 +189,14 @@ export const parseMaintenanceSheet = (worksheet) => {
     }
 
     const dataRows = jsonData.slice(1);
-    // console.log('DEBUG: Linhas de dados de Manutenção (dataRows):', dataRows); 
+    // console.log('DEBUG: Linhas de dados de Manutenção (dataRows):', dataRows);
 
     return dataRows.map((row, rowIndex) => {
         let obj = {};
         headers.forEach((header, index) => {
             obj[header] = row[index] !== undefined ? String(row[index]).trim() : '';
         });
-        
+
         // Retorna o SN/Patrimônio normalizado
         const originalSN = obj[idHeader] || '';
         const normalizedSN = normalizeIdForComparison(originalSN);
@@ -202,5 +205,5 @@ export const parseMaintenanceSheet = (worksheet) => {
         //     console.log(`DEBUG Manutenção[${rowIndex}]: SN original: '${originalSN}' -> Normalizado: '${normalizedSN}'`);
         // }
         return normalizedSN;
-    }).filter(id => id !== ''); 
+    }).filter(id => id !== '');
 };
