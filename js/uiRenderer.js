@@ -2,30 +2,30 @@
 export const renderEquipmentTable = (dataToRender, equipmentTableBody, equipmentCountSpan) => {
     equipmentTableBody.innerHTML = '';
     if (!dataToRender || dataToRender.length === 0) {
-        equipmentTableBody.innerHTML = '<tr><td colspan="10">Nenhum equipamento encontrado ou carregado.</td></tr>'; 
+        equipmentTableBody.innerHTML = '<tr><td colspan="10">Nenhum equipamento encontrado ou carregado.</td></tr>';
         equipmentCountSpan.textContent = `Total: 0 equipamentos`;
         return;
     }
 
     dataToRender.forEach(equipment => {
         const row = equipmentTableBody.insertRow();
-        
+
         // Lógica de aplicação de classe CSS por status de Calibração
         if (equipment.calibrationStatus === 'Não Calibrado') {
-            row.classList.add('not-calibrated'); 
+            row.classList.add('not-calibrated');
         } else if (equipment.calibrationStatus === 'Calibrado (DHMED)') {
-            row.classList.add('calibrated-dhme'); 
+            row.classList.add('calibrated-dhme');
         } else if (equipment.calibrationStatus === 'Calibrado (Sciencetech)') {
-            row.classList.add('calibrated-sciencetech'); 
+            row.classList.add('calibrated-sciencetech');
         } else if (equipment.calibrationStatus === 'Não Cadastrado (DHMED)') {
-            row.classList.add('divergent-calibrated'); 
+            row.classList.add('divergent-calibrated');
         } else if (equipment.calibrationStatus === 'Não Cadastrado (Sciencetech)') {
-            row.classList.add('divergent-calibrated-sciencetech'); 
-        } 
+            row.classList.add('divergent-calibrated-sciencetech');
+        }
 
         // Aplicar classe CSS para Status de Manutenção
         if (equipment.maintenanceStatus && equipment.maintenanceStatus !== 'Não Aplicável') {
-            row.classList.add('in-external-maintenance'); 
+            row.classList.add('in-external-maintenance');
         }
 
 
@@ -34,7 +34,9 @@ export const renderEquipmentTable = (dataToRender, equipmentTableBody, equipment
         row.insertCell().textContent = equipment.Modelo || '';
         row.insertCell().textContent = equipment.Fabricante || '';
         row.insertCell().textContent = equipment.Setor || '';
-        row.insertCell().textContent = equipment['Nº Série'] || '';
+        // Usar 'Nº Série Original' para exibição do Nº Série
+        row.insertCell().textContent = equipment['Nº Série Original'] || equipment['Nº Série'] || '';
+        // Voltar a usar o 'Patrimônio' normalizado para exibição do Patrimônio
         row.insertCell().textContent = equipment.Patrimônio || '';
 
         const statusCell = row.insertCell();
