@@ -1,236 +1,564 @@
 // js/main.js
-import { readFile, parseEquipmentSheet, parseCalibrationSheet, parseMaintenanceSheet } from './excelReader.js';
-import { crossReferenceData } from './dataProcessor.js';
-import { renderEquipmentTable, populateSectorFilter } from './uiRenderer.js';
-import { exportTableToExcel } from './excelExporter.js';
 
-document.addEventListener('DOMContentLoaded', () => {
-    // --- 1. DECLARAÇÃO DE TODOS OS ELEMENTOS HTML E VARIÁVEIS ---
-    const fileInput = document.getElementById('excelFileInput');
-    const processButton = document.getElementById('processButton');
-    const outputDiv = document.getElementById('output');
-    const equipmentTableBody = document.querySelector('#equipmentTable tbody');
-    const sectorFilter = document.getElementById('sectorFilter');
-    const calibrationStatusFilter = document.getElementById('calibrationStatusFilter');
-    const equipmentCountSpan = document.getElementById('equipmentCount');
-    const exportButton = document.getElementById('exportButton');
-    const searchInput = document.getElementById('searchInput'); // Elemento do buscador
+import { readExcelFile } from './excelReader.js';
+import { renderTable, populateSectorFilter, updateEquipmentCount } from './tableRenderer.js';
+import { applyFilters } from './filterLogic.js';
+import { renderOsTable } from './osRenderer.js'; 
+import { initRonda, loadExistingRonda, saveRonda, populateRondaSectorSelect } from './rondaManager.js'; 
 
-    let allEquipmentData = []; // Contém equipamentos originais + divergentes injetados
-    let originalEquipmentData = []; // Para armazenar apenas os equipamentos originais (para o filtro de setor)
-    let allCalibrationData = []; // Calibrações lidas de TODAS as fontes
-    let allMaintenanceData = []; // Para armazenar dados de manutenção
-    let currentlyDisplayedData = []; // Dados atualmente visíveis na tabela (após filtros e busca)
 
-    // NOVO: Expor allEquipmentData para o escopo global para depuração
-    // REMOVA ESTA LINHA DEPOIS QUE A DEPURAÇÃO TERMINAR!
-    window.allEquipmentData = allEquipmentData; 
-
-    // --- 2. DECLARAÇÃO DA FUNÇÃO applyFilters ---
-    // Esta função DEVE ser declarada ANTES de ser usada nos addEventListener
-    const applyFilters = () => {
-        let filteredData = allEquipmentData; // Começa com todos os dados (originais + divergentes)
-        const selectedSector = sectorFilter.value;
-        const selectedStatus = calibrationStatusFilter.value;
-        const searchTerm = searchInput.value.trim().toLowerCase();
-
-        // Aplicar filtro por setor
-        if (selectedSector !== "") {
-            filteredData = filteredData.filter(eq => eq.Setor && eq.Setor.trim() === selectedSector);
-        }
-
-        // Aplicar filtro por status de calibração
-        if (selectedStatus !== "") {
-            if (selectedStatus === "Calibrado (Total)") {
-                filteredData = filteredData.filter(eq => 
-                    eq.calibrationStatus.startsWith("Calibrado (") 
-                );
-            } else {
-                filteredData = filteredData.filter(eq => eq.calibrationStatus === selectedStatus);
-            }
-        }
-
-        // Aplicar filtro de busca por termo
-        if (searchTerm !== "") {
-            filteredData = filteredData.filter(eq => {
-                const tag = String(eq.TAG || '').toLowerCase();
-                const serial = String(eq['Nº Série'] || '').toLowerCase(); // Já normalizado em excelReader
-                const patrimonio = String(eq.Patrimônio || '').toLowerCase(); // Já normalizado em excelReader
-
-                // Busca em TAG, Nº Série (normalizado) ou Patrimônio
-                return tag.includes(searchTerm) || serial.includes(searchTerm) || patrimonio.includes(searchTerm);
-            });
-        }
-
-        currentlyDisplayedData = filteredData; 
-        renderEquipmentTable(filteredData, equipmentTableBody, equipmentCountSpan);
-    };
-
-    // --- 3. EVENT LISTENERS QUE USAM applyFilters ---
-    if (sectorFilter) sectorFilter.addEventListener('change', applyFilters);
-    if (calibrationStatusFilter) calibrationStatusFilter.addEventListener('change', applyFilters);
-    
-    if (searchInput) {
-        searchInput.addEventListener('input', applyFilters); 
-    } else {
-        console.error("Elemento com ID 'searchInput' não encontrado! Verifique o index.html."); 
+// === FUNÇÃO DE NORMALIZAÇÃO DE NÚMERO DE SÉRIE / PATRIMÔNIO ===
+function normalizeId(id) {
+    if (id === null || id === undefined) {
+        return '';
     }
+    let strId = String(id).trim(); 
 
-    if (exportButton) {
-        exportButton.addEventListener('click', () => {
-            if (currentlyDisplayedData.length > 0) {
-                exportTableToExcel(currentlyDisplayedData, 'Equipamentos_Calibacao_Filtrados');
-                outputDiv.textContent = 'Exportando dados para Excel...';
-            } else {
-                outputDiv.textContent = 'Não há dados para exportar. Por favor, carregue e processe os arquivos primeiro.';
-            }
-        });
-    } else {
-        console.error("Elemento com ID 'exportButton' não encontrado! Verifique o index.html."); 
+    if (/^\d+$/.test(strId)) { 
+        return String(parseInt(strId, 10)); 
     }
+    return strId.toLowerCase(); 
+}
+// =============================================================
 
-    // Listener para o botão de processar arquivos
-    processButton.addEventListener('click', async () => {
-        const files = fileInput.files;
-        if (files.length === 0) {
-            outputDiv.textContent = 'Por favor, selecione pelo menos um arquivo Excel.';
-            return;
-        }
+let allEquipments = [];
+window.consolidatedCalibratedMap = new Map(); 
+window.consolidatedCalibrationsRawData = []; 
+window.externalMaintenanceSNs = new Set(); 
+window.osRawData = []; 
+window.rondaData = []; 
 
-        // Resetar variáveis e UI antes de processar novos arquivos
-        outputDiv.textContent = 'Processando arquivos...';
-        allEquipmentData = [];
-        originalEquipmentData = [];
-        allCalibrationData = [];
-        allMaintenanceData = []; // Resetar dados de manutenção
-        equipmentTableBody.innerHTML = '';
-        sectorFilter.innerHTML = '<option value="">Todos os Setores</option>';
-        calibrationStatusFilter.value = "";
-        equipmentCountSpan.textContent = `Total: 0 equipamentos`;
-        currentlyDisplayedData = [];
-        if (searchInput) searchInput.value = ''; 
 
-        let tempEquipmentData = []; 
-        let tempCalibrationData = []; 
-        let tempMaintenanceSNs = []; // Array para armazenar APENAS os SNs de manutenção
+// Referências aos elementos do DOM
+const excelFileInput = document.getElementById('excelFileInput');
+const processButton = document.getElementById('processButton');
+const outputDiv = document.getElementById('output');
+const equipmentTableBody = document.querySelector('#equipmentTable tbody');
+const osTableBody = document.querySelector('#osTable tbody'); 
 
-        try {
-            const fileResults = await Promise.all(Array.from(files).map(readFile));
+const sectorFilter = document.getElementById('sectorFilter'); 
+const calibrationStatusFilter = document.getElementById('calibrationStatusFilter');
+const searchInput = document.getElementById('searchInput'); 
+const maintenanceFilter = document.getElementById('maintenanceFilter'); 
+const exportButton = document.getElementById('exportButton');
+const exportOsButton = document.getElementById('exportOsButton'); 
 
-            fileResults.forEach(result => {
-                const { fileName, workbook } = result;
+const headerFiltersRow = document.getElementById('headerFilters'); 
 
-                // Processa planilha de Equipamentos
-                if (workbook.SheetNames.includes('Equipamentos')) {
-                    const parsedEquipments = parseEquipmentSheet(workbook.Sheets['Equipamentos']);
-                    tempEquipmentData = tempEquipmentData.concat(parsedEquipments);
-                    outputDiv.textContent += `\n- Arquivo de Equipamentos (${fileName}) carregado. Total: ${parsedEquipments.length} registros.`
-                }
+// Botões e Seções de alternância de visualização
+const showEquipmentButton = document.getElementById('showEquipmentButton');
+const showOsButton = document.getElementById('showOsButton');
+const showRondaButton = document.getElementById('showRondaButton'); 
+const equipmentSection = document.getElementById('equipmentSection');
+const osSection = document.getElementById('osSection');
+const rondaSection = document.getElementById('rondaSection'); 
 
-                workbook.SheetNames.forEach(sheetName => {
-                    const lowerCaseFileName = fileName.toLowerCase();
-                    const lowerCaseSheetName = sheetName.toLowerCase();
-                    
-                    const parsedCalibrations = parseCalibrationSheet(workbook.Sheets[sheetName]);
-                    if (parsedCalibrations.length > 0) {
-                        const calibrationsWithSource = parsedCalibrations.map(cal => {
-                            let source = 'Desconhecida'; 
-                            
-                            if (lowerCaseFileName.includes('sciencetech') || lowerCaseSheetName.includes('sciencetech')) {
-                                source = 'Sciencetech';
-                            } else if (lowerCaseFileName.includes('dhmed') || lowerCaseFileName.includes('dhme') || 
-                                       lowerCaseSheetName.includes('dhmed') || lowerCaseSheetName.includes('dhme') || 
-                                       lowerCaseSheetName.includes('plan1') || lowerCaseSheetName.includes('planilha1') ||
-                                       lowerCaseFileName.includes('dhm') || lowerCaseSheetName.includes('dhm')) { 
-                                source = 'DHMED'; 
-                            }
-                            return { ...cal, _source: source };
-                        });
-                        tempCalibrationData = tempCalibrationData.concat(calibrationsWithSource);
-                        outputDiv.textContent += `\n- Arquivo de Calibração (${fileName} - Planilha: ${sheetName}) carregado. Total: ${parsedCalibrations.length} registros.`;
-                    }
+// Elementos da seção de Ronda
+const rondaSectorSelect = document.getElementById('rondaSectorSelect');
+const startRondaButton = document.getElementById('startRondaButton');
+const rondaFileInput = document.getElementById('rondaFileInput');
+const loadRondaButton = document.getElementById('loadRondaButton');
+const saveRondaButton = document.getElementById('saveRondaButton');
+const rondaTableBody = document.querySelector('#rondaTable tbody');
+const rondaCountSpan = document.getElementById('rondaCount');
 
-                    // LÓGICA DE IDENTIFICAÇÃO DE MANUTENÇÃO EXTERNA - ATUALIZADA
-                    if (lowerCaseFileName.includes('manutencao_externa') || lowerCaseSheetName.includes('manutencao_externa') || 
-                        lowerCaseSheetName.includes('man_ext') || lowerCaseSheetName.includes('manut_ext') ||
-                        lowerCaseFileName.includes('manu_externa') || lowerCaseSheetName.includes('manu_externa')) { 
-                         const parsedMaintenance = parseMaintenanceSheet(workbook.Sheets[sheetName]);
-                         tempMaintenanceSNs = tempMaintenanceSNs.concat(parsedMaintenance); // tempMaintenanceSNs agora recebe APENAS os SNs
-                         outputDiv.textContent += `\n- Arquivo de Manutenção Externa (${fileName} - Planilha: ${sheetName}) carregado. Total: ${parsedMaintenance.length} registros.`;
-                    }
-                });
-            });
-            
-            originalEquipmentData = tempEquipmentData;
-            
-            const { equipmentData: processedEquipmentData, calibratedCount, notCalibratedCount, divergentCalibrations: newDivergentCalibrations } = crossReferenceData(originalEquipmentData, tempCalibrationData, outputDiv);
-            
-            allEquipmentData = processedEquipmentData.concat(newDivergentCalibrations.map(cal => ({
-                TAG: cal.TAG || 'N/A', 
-                Equipamento: cal.EQUIPAMENTO || 'N/A',
-                Modelo: cal.MODELO || 'N/A',
-                Fabricante: cal.FABRICANTE || cal.MARCA || 'N/A', 
-                Setor: cal.SETOR || 'N/A',
-                'Nº Série': cal.SN || 'N/A',
-                Patrimônio: cal.Patrimônio || 'N/A', 
-                calibrationStatus: `Não Cadastrado (${cal._source || 'Desconhecida'})`, 
-                calibrations: [cal], 
-                nextCalibrationDate: cal['DATA VAL'] || 'N/A',
-                maintenanceStatus: 'Não Aplicável' 
-            })));
 
-            // CRUZAMENTO PARA MANUTENÇÃO EXTERNA
-            if (tempMaintenanceSNs.length > 0) {
-                // tempMaintenanceSNs já vêm normalizados de excelReader.js (são os SNs puros)
-                const maintenanceSNsSet = new Set(tempMaintenanceSNs); 
-                window.tempMaintenanceSNs_DEBUG = Array.from(maintenanceSNsSet); // EXPOR PARA DEPURAÇÃO
+/**
+ * Alterna a visibilidade das seções entre Equipamentos, OS e Ronda.
+ * @param {string} sectionToShowId - O ID da seção a ser mostrada ('equipmentSection', 'osSection', 'rondaSection').
+ */
+function toggleSectionVisibility(sectionToShowId) {
+    if (equipmentSection) equipmentSection.classList.add('hidden');
+    if (osSection) osSection.classList.add('hidden');
+    if (rondaSection) rondaSection.classList.add('hidden'); 
 
-                console.log('DEBUG: SNs de Manutenção (Set):', Array.from(maintenanceSNsSet)); // DEBUG: SNs de manutenção para comparação
+    document.querySelectorAll('.toggle-section-button').forEach(button => {
+        button.classList.remove('active');
+    });
 
-                allEquipmentData.forEach((eq, index) => {
-                    // ATUALIZADO: Usar APENAS o Nº Série do equipamento para a comparação
-                    const equipmentSNForMaintenance = (eq['Nº Série'] || ''); // Este já vem normalizado de excelReader.js (parseEquipmentSheet)
-                    
-                    // DEBUG: Log do SN do equipamento e o resultado da busca
-                    // if (index < 10) { // Limitar para não inundar o console
-                    //     console.log(`DEBUG Equipamento[${index}]: SN para busca: '${equipmentSNForMaintenance}' - Encontrado em manutenção? ${maintenanceSNsSet.has(equipmentSNForMaintenance)}`);
-                    // }
+    if (sectionToShowId === 'equipmentSection' && equipmentSection) {
+        equipmentSection.classList.remove('hidden');
+        if (showEquipmentButton) showEquipmentButton.classList.add('active');
+    } else if (sectionToShowId === 'osSection' && osSection) {
+        osSection.classList.remove('hidden');
+        if (showOsButton) showOsButton.classList.add('active');
+    } else if (sectionToShowId === 'rondaSection' && rondaSection) { 
+        rondaSection.classList.remove('hidden');
+        if (showRondaButton) showRondaButton.classList.add('active');
+    }
+}
 
-                    if (equipmentSNForMaintenance && maintenanceSNsSet.has(equipmentSNForMaintenance)) {
-                        eq.maintenanceStatus = 'Em Manutenção Externa'; 
-                        // console.log(`DEBUG: Equipamento ${eq.TAG || eq['Nº Série']} marcado como 'Em Manutenção Externa'`); // DEBUG: Confirmação de marcação
-                    } else if (!eq.maintenanceStatus || eq.maintenanceStatus === 'Não Aplicável') { 
-                        eq.maintenanceStatus = 'Não Aplicável';
-                    }
-                });
-                outputDiv.textContent += `\n- Dados de Manutenção Externa cruzados com ${tempMaintenanceSNs.length} registros (SNs).`;
-            } else {
-                 outputDiv.textContent += `\n- Nenhum arquivo de Manutenção Externa processado.`;
-            }
 
-            window.allEquipmentData = allEquipmentData; 
-            
-            applyFilters();
-            populateSectorFilter(originalEquipmentData, sectorFilter); 
-            outputDiv.textContent += '\nProcessamento concluído. Verifique a tabela abaixo.';
+/**
+ * Popula o dropdown de Status de Calibração (global) dinamicamente.
+ * @param {Array<Object>} rawCalibrationsData - Dados brutos da consolidação para extrair fornecedores.
+ * @param {HTMLElement} calibrationStatusFilterElement - O elemento <select> do filtro.
+ */
+function populateCalibrationStatusFilter(rawCalibrationsData) {
+    const filterElement = calibrationStatusFilter; 
 
-            if (newDivergentCalibrations.length > 0) {
-                const dhmedDivergences = newDivergentCalibrations.filter(cal => cal._source === 'DHMED').length;
-                const sciencetechDivergences = newDivergentCalibrations.filter(cal => cal._source === 'Sciencetech').length;
-                const unknownDivergences = newDivergentCalibrations.filter(cal => cal._source === 'Desconhecida').length;
+    filterElement.innerHTML = '<option value="">Todos os Status</option>';
 
-                outputDiv.textContent += `\n\n--- Calibrações com Divergência (${newDivergentCalibrations.length}) ---`;
-                if (dhmedDivergences > 0) outputDiv.textContent += `\n  - DHMED: ${dhmedDivergences} (Status: "Não Cadastrado (DHMED)")`;
-                if (sciencetechDivergences > 0) outputDiv.textContent += `\n  - Sciencetech: ${sciencetechDivergences} (Status: "Não Cadastrado (Sciencetech)")`;
-                if (unknownDivergences > 0) outputDiv.textContent += `\n  - Desconhecida: ${unknownDivergences} (Status: "Não Cadastrado (Desconhecido)")`;
-                outputDiv.textContent += `\nListadas na tabela principal com o status correspondente.`;
-            } else {
-                outputDiv.textContent += `\n\nNão foram encontradas calibrações sem equipamento correspondente.`;
-            }
+    // Adiciona a nova opção "Calibrado (Consolidado)"
+    const consolidatedCalibratedOption = document.createElement('option');
+    consolidatedCalibratedOption.value = 'Calibrado (Consolidado)';
+    consolidatedCalibratedOption.textContent = 'Calibrado (Consolidado)';
+    filterElement.appendChild(consolidatedCalibratedOption);
 
-        } catch (error) {
-            outputDiv.textContent = `Ocorreu um erro geral no processamento: ${error.message}`;
-            console.error("Erro no processamento:", error);
+    // As opções de divergência por fornecedor ainda podem ser úteis
+    const uniqueSuppliers = new Set();
+    rawCalibrationsData.forEach(item => {
+        const fornecedor = String(item.FornecedorConsolidacao || item.Fornecedor || '').trim();
+        if (fornecedor) {
+            uniqueSuppliers.add(fornecedor); 
         }
     });
+
+    Array.from(uniqueSuppliers).sort().forEach(fornecedor => {
+        // As opções de calibração por fornecedor específico serão removidas em breve,
+        // mas mantidas para o filtro de Divergência por enquanto
+        const optionDivergence = document.createElement('option');
+        optionDivergence.value = `Divergência (${fornecedor})`;
+        optionDivergence.textContent = `Divergência (${fornecedor})`;
+        filterElement.appendChild(optionDivergence);
+    });
+
+    // Opções fixas que permanecem
+    const fixedOptions = [
+        { value: 'Calibrado (Total)', text: 'Calibrado (Total)' }, 
+        { value: 'Divergência (Todos Fornecedores)', text: 'Divergência (Todos Fornecedores)' },
+        { value: 'Não Calibrado/Não Encontrado (Seu Cadastro)', text: 'Não Calibrado/Não Encontrado (Seu Cadastro)' },
+        { value: 'Não Cadastrado', text: 'Não Cadastrado' }, 
+        { value: 'Não Calibrado', text: 'Não Calibrado' } 
+    ];
+
+    fixedOptions.forEach(opt => {
+        const option = document.createElement('option');
+        option.value = opt.value;
+        option.textContent = opt.text;
+        filterElement.appendChild(option);
+    });
+}
+
+
+/**
+ * Lida com o processamento dos arquivos Excel selecionados pelo usuário.
+ */
+async function handleProcessFile() {
+    outputDiv.textContent = 'Processando arquivos...';
+    const files = excelFileInput.files;
+
+    if (files.length === 0) {
+        outputDiv.textContent = 'Por favor, selecione os arquivos Excel (equipamentos, consolidação de calibrações e manutenção).';
+        return;
+    }
+
+    let equipmentFile = null;
+    let consolidatedCalibrationsFile = null; 
+    let externalMaintenanceFile = null; 
+    let osCaliAbertasFile = null; 
+    let rondaExistingFile = null; 
+
+    for (const file of files) {
+        const fileNameLower = file.name.toLowerCase();
+        if (fileNameLower.includes('equipamentos') && !equipmentFile) {
+            equipmentFile = file;
+        } else if (fileNameLower.includes('empresa_cali_vba') && !consolidatedCalibrationsFile) { 
+            consolidatedCalibrationsFile = file;
+        } else if (fileNameLower.includes('manu_externa') && !externalMaintenanceFile) { 
+            externalMaintenanceFile = file;
+        } else if (fileNameLower.includes('os_cali_abertas') && !osCaliAbertasFile) { 
+            osCaliAbertasFile = file;
+        } else if (fileNameLower.includes('ronda_existente') && !rondaExistingFile) { 
+            rondaExistingFile = file;
+        }
+    }
+
+    if (!equipmentFile) {
+        outputDiv.textContent = 'Arquivo de equipamentos não encontrado. Por favor, inclua um arquivo com "equipamentos" no nome.';
+        return;
+    }
+
+    try {
+        outputDiv.textContent += `\nLendo arquivo de equipamentos: ${equipmentFile.name}...`;
+        allEquipments = await readExcelFile(equipmentFile);
+
+        if (allEquipments.length === 0) {
+            outputDiv.textContent += `\nNenhum dado encontrado no arquivo de equipamentos "${equipmentFile.name}".`;
+            renderTable([], equipmentTableBody, window.consolidatedCalibratedMap, window.externalMaintenanceSNs); 
+            populateSectorFilter([], sectorFilter);
+            updateEquipmentCount(0);
+            renderOsTable([], osTableBody, new Map(), new Map(), new Map(), new Set(), normalizeId); 
+            initRonda([], rondaTableBody, rondaCountSpan, '', normalizeId); 
+            return;
+        }
+        outputDiv.textContent += `\n${allEquipments.length} equipamentos carregados.`;
+
+        const mainEquipmentsBySN = new Map();
+        const mainEquipmentsByPatrimonio = new Map();
+        allEquipments.forEach(eq => {
+            const sn = normalizeId(eq.NumeroSerie); 
+            const patrimonio = normalizeId(eq.Patrimonio); 
+            if (sn) mainEquipmentsBySN.set(sn, eq);
+            if (patrimonio) mainEquipmentsByPatrimonio.set(patrimonio, eq);
+        });
+
+        // Processa o arquivo de calibrações consolidadas
+        window.consolidatedCalibratedMap.clear(); 
+        window.consolidatedCalibrationsRawData = []; 
+
+        if (consolidatedCalibrationsFile) {
+            outputDiv.textContent += `\nLendo arquivo de Calibrações Consolidadas: ${consolidatedCalibrationsFile.name}...`;
+            const consolidatedData = await readExcelFile(consolidatedCalibrationsFile, 'Consolidação'); 
+            window.consolidatedCalibrationsRawData = consolidatedData; 
+
+            if (consolidatedData.length > 0) {
+                consolidatedData.forEach(item => {
+                    const sn = normalizeId(item.NumeroSerieConsolidacao || item.NumeroSerie || item.NºdeSérie || item['Nº de Série'] || item['Número de Série']); 
+                    const fornecedor = String(item.FornecedorConsolidacao || item.Fornecedor || '').trim(); 
+                    const dataCalibracao = item.DataCalibracaoConsolidada || item['Data de Calibração'] || ''; 
+
+                    if (sn && fornecedor) {
+                        window.consolidatedCalibratedMap.set(sn, { fornecedor: fornecedor, dataCalibacao: dataCalibracao });
+                    }
+                });
+                outputDiv.textContent += `\n${window.consolidatedCalibratedMap.size} SNs de calibração consolidados encontrados.`;
+            } else {
+                outputDiv.textContent += `\nNenhum dado encontrado no arquivo de Calibrações Consolidadas "${consolidatedCalibrationsFile.name}".`;
+            }
+        } else {
+            outputDiv.textContent += `\nArquivo de Calibrações Consolidadas não selecionado.`;
+        }
+
+        // Processa o arquivo de Manutenção Externa
+        window.externalMaintenanceSNs.clear(); 
+        if (externalMaintenanceFile) {
+            outputDiv.textContent += `\nLendo arquivo Manutenção Externa: ${externalMaintenanceFile.name}...`;
+            const maintenanceData = await readExcelFile(externalMaintenanceFile);
+            if (maintenanceData.length > 0) {
+                maintenanceData.forEach(item => {
+                    const sn = normalizeId(item.NumeroSerie); 
+                    if (sn) {
+                        window.externalMaintenanceSNs.add(sn);
+                    }
+                });
+                outputDiv.textContent += `\n${window.externalMaintenanceSNs.size} SNs em manutenção externa encontrados.`;
+            } else {
+                outputDiv.textContent += `\nNenhum dado encontrado no arquivo Manutenção Externa "${externalMaintenanceFile.name}".`;
+            }
+        } else {
+            outputDiv.textContent += `\nArquivo Manutenção Externa não selecionado.`;
+        }
+
+        // Processa o arquivo de Ordens de Serviço (OS)
+        window.osRawData = []; 
+        if (osCaliAbertasFile) {
+            outputDiv.textContent += `\nLendo arquivo de OS Abertas: ${osCaliAbertasFile.name}...`;
+            const rawOsData = await readExcelFile(osCaliAbertasFile);
+
+            window.osRawData = rawOsData.filter(os => {
+                const tipoManutencao = String(os.TipoDeManutencao || '').trim().toUpperCase(); 
+                return tipoManutencao === 'CALIBRAÇÃO' || tipoManutencao === 'SEGURANÇA ELÉTRICA';
+            });
+
+            if (window.osRawData.length > 0) {
+                outputDiv.textContent += `\n${window.osRawData.length} OS Abertas (filtradas por tipo) encontradas.`;
+            } else {
+                outputDiv.textContent += `\nNenhuma OS Aberta (filtrada por tipo) encontrada no arquivo "${osCaliAbertasFile.name}".`;
+            }
+        } else {
+            outputDiv.textContent += `\nArquivo de OS Abertas não selecionado.`;
+        }
+
+        outputDiv.textContent += '\nProcessamento concluído. Renderizando tabelas...';
+        applyAllFiltersAndRender(); 
+        populateSectorFilter(allEquipments, sectorFilter); 
+        populateCalibrationStatusFilter(window.consolidatedCalibrationsRawData); 
+        setupHeaderFilters(allEquipments); // Chamada para configurar filtros de cabeçalho
+
+        renderOsTable(
+            window.osRawData,
+            osTableBody,
+            mainEquipmentsBySN, 
+            mainEquipmentsByPatrimonio, 
+            window.consolidatedCalibratedMap, 
+            window.externalMaintenanceSNs, 
+            normalizeId 
+        );
+        populateRondaSectorSelect(allEquipments, rondaSectorSelect);
+        if (rondaExistingFile) {
+            outputDiv.textContent += `\nCarregando Ronda Existente: ${rondaExistingFile.name}...`;
+            const existingRondaData = await readExcelFile(rondaExistingFile);
+            loadExistingRonda(existingRondaData, rondaTableBody, rondaCountSpan);
+            outputDiv.textContent += `\nRonda Existente carregada.`;
+        } else {
+            initRonda([], rondaTableBody, rondaCountSpan, '', normalizeId); 
+        }
+
+        toggleSectionVisibility('equipmentSection'); 
+
+    } catch (error) {
+        outputDiv.textContent = `Erro ao processar os arquivos: ${error.message}`;
+        console.error('Erro ao processar arquivos:', error);
+    }
+}
+
+/**
+ * Configura os filtros personalizados nos cabeçalhos da tabela principal.
+ */
+function setupHeaderFilters(equipments) {
+    headerFiltersRow.innerHTML = ''; 
+
+    const headerFilterMap = {
+        'TAG': { prop: 'TAG', type: 'text' },
+        'Equipamento': { prop: 'Equipamento', type: 'select_multiple' }, 
+        'Modelo': { prop: 'Modelo', type: 'select_multiple' },         
+        'Fabricante': { prop: 'Fabricante', type: 'select_multiple' },     
+        'Setor': { prop: 'Setor', type: 'select_multiple' },             
+        'Nº Série': { prop: 'NumeroSerie', type: 'text' },
+        'Patrimônio': { prop: 'Patrimonio', type: 'text' },
+        'Status Calibração': { prop: 'StatusCalibacao', type: 'select_multiple' }, 
+        'Data Vencimento Calibração': { prop: 'DataVencimentoCalibacao', type: 'text' }, 
+        'Status Manutenção': { prop: 'StatusManutencao', type: 'text' } 
+    };
+
+    const originalHeaders = document.querySelectorAll('#equipmentTable thead tr:first-child th');
+    originalHeaders.forEach(th => {
+        const filterCell = document.createElement('th');
+        const headerText = th.textContent.trim();
+        const columnInfo = headerFilterMap[headerText];
+
+        if (columnInfo) {
+            if (columnInfo.type === 'text') {
+                const filterInput = document.createElement('input');
+                filterInput.type = 'text';
+                filterInput.placeholder = `Filtrar ${headerText}...`;
+                filterInput.dataset.property = columnInfo.prop;
+                filterInput.addEventListener('keyup', applyAllFiltersAndRender);
+                filterInput.addEventListener('change', applyAllFiltersAndRender);
+                filterCell.appendChild(filterInput);
+            } else if (columnInfo.type === 'select_multiple') {
+                const filterButton = document.createElement('div');
+                filterButton.className = 'filter-button';
+                filterButton.textContent = `Filtrar ${headerText}`; 
+                filterButton.dataset.property = columnInfo.prop;
+
+                const filterPopup = document.createElement('div');
+                filterPopup.className = 'filter-popup';
+                filterPopup.dataset.property = columnInfo.prop; 
+
+                const searchPopupInput = document.createElement('input');
+                searchPopupInput.type = 'text';
+                searchPopupInput.placeholder = 'Buscar...';
+                searchPopupInput.className = 'filter-search-input';
+                filterPopup.appendChild(searchPopupInput);
+
+                const optionsContainer = document.createElement('div'); 
+                optionsContainer.className = 'filter-options-container'; 
+                filterPopup.appendChild(optionsContainer);
+
+
+                const uniqueValues = new Set();
+                equipments.forEach(eq => {
+                    let value;
+                    if (columnInfo.prop === 'StatusCalibacao') {
+                        const calibInfo = window.consolidatedCalibratedMap.get(normalizeId(eq.NumeroSerie));
+                        if (calibInfo) {
+                            value = 'Calibrado (Consolidado)'; // Valor genérico
+                        } else {
+                            const originalStatusLower = String(eq?.StatusCalibacao || '').toLowerCase();
+                            if (originalStatusLower.includes('não calibrado') || originalStatusLower.includes('não cadastrado')) {
+                                value = 'Não Calibrado/Não Encontrado (Seu Cadastro)';
+                            } else if (originalStatusLower.includes('calibrado (total)')) {
+                                value = 'Calibrado (Total)';
+                            } else {
+                                value = 'Não Calibrado/Não Encontrado (Seu Cadastro)';
+                            }
+                        }
+                    } else if (columnInfo.prop === 'StatusManutencao') { 
+                         const equipmentSN = normalizeId(eq?.NumeroSerie); 
+                         if (window.externalMaintenanceSNs.has(equipmentSN)) {
+                             value = 'Em Manutenção Externa';
+                         } else {
+                             value = String(eq?.StatusManutencao || ''); 
+                         }
+                    } else if (columnInfo.prop === 'NumeroSerie' || columnInfo.prop === 'Patrimonio') { 
+                        value = normalizeId(eq[columnInfo.prop]); 
+                    }
+                    else {
+                        value = eq[columnInfo.prop];
+                    }
+
+                    if (value && String(value).trim() !== '') {
+                        uniqueValues.add(String(value).trim());
+                    }
+                });
+
+                const populateCheckboxes = (searchTerm = '') => {
+                    optionsContainer.innerHTML = ''; 
+                    const filteredValues = Array.from(uniqueValues).filter(val => 
+                        String(val).toLowerCase().includes(searchTerm.toLowerCase())
+                    ).sort();
+
+                    const selectAllLabel = document.createElement('label');
+                    selectAllLabel.className = 'select-all-label'; 
+                    const selectAllCheckbox = document.createElement('input');
+                    selectAllCheckbox.type = 'checkbox';
+                    selectAllCheckbox.className = 'select-all';
+                    selectAllCheckbox.checked = true; 
+
+                    selectAllLabel.appendChild(selectAllCheckbox);
+                    selectAllLabel.appendChild(document.createTextNode('(Selecionar Todos)'));
+                    optionsContainer.appendChild(selectAllLabel);
+
+                    selectAllCheckbox.addEventListener('change', () => {
+                        const allIndividualCheckboxes = optionsContainer.querySelectorAll('input[type="checkbox"]:not(.select-all)');
+                        allIndividualCheckboxes.forEach(cb => cb.checked = selectAllCheckbox.checked);
+                        applyAllFiltersAndRender();
+                    });
+
+                    filteredValues.forEach(value => {
+                        const label = document.createElement('label');
+                        const checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        checkbox.value = value; 
+                        checkbox.checked = true; 
+                        checkbox.addEventListener('change', () => {
+                            const allIndividualCheckboxes = optionsContainer.querySelectorAll('input[type="checkbox"]:not(.select-all)');
+                            selectAllCheckbox.checked = Array.from(allIndividualCheckboxes).every(cb => cb.checked);
+                            applyAllFiltersAndRender();
+                        });
+
+                        label.appendChild(checkbox);
+                        label.appendChild(document.createTextNode(value));
+                        optionsContainer.appendChild(label);
+                    });
+                };
+
+                populateCheckboxes(); 
+
+                searchPopupInput.addEventListener('keyup', (event) => {
+                    populateCheckboxes(event.target.value);
+                });
+
+                filterButton.addEventListener('click', (event) => {
+                    document.querySelectorAll('.filter-popup.active').forEach(popup => {
+                        if (popup !== filterPopup) {
+                            popup.classList.remove('active');
+                        }
+                    });
+                    filterPopup.classList.toggle('active'); 
+                    event.stopPropagation(); 
+                });
+
+                document.addEventListener('click', (event) => {
+                    if (!filterPopup.contains(event.target) && !filterButton.contains(event.target)) {
+                        filterPopup.classList.remove('active');
+                    }
+                });
+
+                filterCell.appendChild(filterButton);
+                filterCell.appendChild(filterPopup);
+            }
+        } else {
+            filterCell.innerHTML = '&nbsp;'; 
+        }
+        headerFiltersRow.appendChild(filterCell);
+    });
+}
+
+/**
+ * Aplica os filtros atuais (globais e de cabeçalho) e renderiza a tabela.
+ */
+function applyAllFiltersAndRender() {
+    const filters = {
+        sector: sectorFilter.value, 
+        calibrationStatus: calibrationStatusFilter.value,
+        search: normalizeId(searchInput.value), 
+        maintenance: maintenanceFilter.value,
+        headerFilters: {} 
+    };
+
+    document.querySelectorAll('#headerFilters input[type="text"]').forEach(input => {
+        if (input.value.trim() !== '') {
+            filters.headerFilters[input.dataset.property] = normalizeId(input.value); 
+        }
+    });
+
+    document.querySelectorAll('#headerFilters .filter-popup').forEach(popup => {
+        const property = popup.dataset.property;
+        const selectedValues = [];
+        popup.querySelectorAll('input[type="checkbox"]:checked:not(.select-all)').forEach(checkbox => {
+            selectedValues.push(checkbox.value); 
+        });
+
+        const allOptionsCount = popup.querySelectorAll('input[type="checkbox"]:not(.select-all)').length;
+
+        if (selectedValues.length > 0 && selectedValues.length < allOptionsCount) {
+            filters.headerFilters[property] = selectedValues;
+        } else if (selectedValues.length === 0 && allOptionsCount > 0 && !popup.querySelector('.select-all').checked) {
+            filters.headerFilters[property] = []; 
+        }
+    });
+
+    const filteredEquipments = applyFilters(allEquipments, filters, normalizeId); 
+    renderTable(filteredEquipments, equipmentTableBody, window.consolidatedCalibratedMap, window.externalMaintenanceSNs); 
+    updateEquipmentCount(filteredEquipments.length);
+}
+
+/**
+ * Exporta a tabela exibida atualmente para um arquivo Excel.
+ */
+function exportTableToExcel() {
+    const table = document.getElementById('equipmentTable');
+    const headerFiltersRowElement = document.getElementById('headerFilters');
+    headerFiltersRowElement.style.display = 'none';
+
+    const ws = XLSX.utils.table_to_sheet(table);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Equipamentos Filtrados");
+    XLSX.writeFile(wb, "equipamentos_filtrados.xlsx");
+
+    headerFiltersRowElement.style.display = '';
+}
+
+// Event Listeners para os elementos de interação do usuário
+processButton.addEventListener('click', handleProcessFile);
+sectorFilter.addEventListener('change', applyAllFiltersAndRender); 
+calibrationStatusFilter.addEventListener('change', applyAllFiltersAndRender); 
+searchInput.addEventListener('keyup', applyAllFiltersAndRender);
+maintenanceFilter.addEventListener('change', applyAllFiltersAndRender); 
+exportButton.addEventListener('click', exportTableToExcel);
+
+exportOsButton.addEventListener('click', () => {
+    const osTable = document.getElementById('osTable');
+    const ws = XLSX.utils.table_to_sheet(osTable);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "OS Abertas Filtradas");
+    XLSX.writeFile(wb, "os_abertas_filtradas.xlsx");
+});
+
+showEquipmentButton.addEventListener('click', () => toggleSectionVisibility('equipmentSection'));
+showOsButton.addEventListener('click', () => toggleSectionVisibility('osSection'));
+showRondaButton.addEventListener('click', () => toggleSectionVisibility('rondaSection')); 
+
+// Event Listeners para a funcionalidade de Ronda (delegando para o rondaManager)
+startRondaButton.addEventListener('click', () => {
+    initRonda(allEquipments, rondaTableBody, rondaCountSpan, rondaSectorSelect.value, normalizeId); 
+});
+
+loadRondaButton.addEventListener('click', async () => {
+    const file = rondaFileInput.files[0];
+    if (file) {
+        outputDiv.textContent = `\nCarregando Ronda Existente: ${file.name}...`;
+        const existingRondaData = await readExcelFile(file);
+        loadRonda(existingRondaData, rondaTableBody, rondaCountSpan); 
+        outputDiv.textContent += `\nRonda Existente carregada.`;
+    } else {
+        outputDiv.textContent = `\nPor favor, selecione um arquivo de Ronda Existente.`;
+    }
+});
+
+saveRondaButton.addEventListener('click', () => {
+    saveRonda(rondaTableBody); 
 });

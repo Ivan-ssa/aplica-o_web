@@ -9,7 +9,7 @@
 <body>
     <h1>Leitor e Cruzamento de Dados Excel</h1>
 
-    <p>Selecione os arquivos Excel (o arquivo de equipamentos e os de calibração):</p>
+    <p>Selecione os arquivos Excel (o arquivo de equipamentos, a consolidação de calibrações e o de manutenção):</p>
     <input type="file" id="excelFileInput" accept=".xls,.xlsx" multiple>
     <button id="processButton">Processar Arquivos</button>
 
@@ -18,57 +18,132 @@
 
     ---
 
-    <h2>Equipamentos Cadastrados</h2>
-    <div id="equipmentTableContainer">
-        <div id="filterContainer">
-            <label for="sectorFilter">Filtrar por Setor:</label>
-            <select id="sectorFilter">
-                <option value="">Todos os Setores</option>
+    <div style="margin-top: 20px; margin-bottom: 20px;">
+        <button id="showEquipmentButton" class="toggle-section-button active">
+            Ver Equipamentos
+        </button>
+        <button id="showOsButton" class="toggle-section-button">
+            Ver Ordens de Serviço (OS)
+        </button>
+        <button id="showRondaButton" class="toggle-section-button"> 
+            Ver Ronda
+        </button>
+    </div>
+
+    <div id="equipmentSection" class="section-container">
+        <h2>Equipamentos Cadastrados</h2>
+        <div id="equipmentTableContainer" class="equipment-table-container">
+            <div id="filterContainer">
+                <label for="sectorFilter">Filtrar por Setor:</label>
+                <select id="sectorFilter">
+                    <option value="">Todos os Setores</option>
                 </select>
 
-            <label for="calibrationStatusFilter">Filtrar por Status de Calibração:</label>
-            <select id="calibrationStatusFilter">
-                <option value="">Todos os Status</option>
-                <option value="Calibrado (Total)">Calibrado (Total)</option>
-                <option value="Calibrado (DHMED)">Calibrado (DHMED)</option>
-                <option value="Calibrado (Sciencetech)">Calibrado (Sciencetech)</option>
-                <option value="Não Calibrado">Não Calibrado</option>
-                <option value="Não Cadastrado (DHMED)">Não Cadastrado (DHMED)</option>
-                <option value="Não Cadastrado (Sciencetech)">Não Cadastrado (Sciencetech)</option>
+                <label for="calibrationStatusFilter">Filtrar por Status de Calibração:</label>
+                <select id="calibrationStatusFilter">
+                    <option value="">Todos os Status</option>
+                    <option value="Divergência (Todos Fornecedores)">Divergência (Todos Fornecedores)</option>
+                    <option value="Não Calibrado/Não Encontrado (Seu Cadastro)">Não Calibrado/Não Encontrado (Seu Cadastro)</option>
+                    <option value="Não Cadastrado">Não Cadastrado</option>
+                    <option value="Não Calibrado">Não Calibrado</option>
+                    <option value="Calibrado (Total)">Calibrado (Total)</option>
+                </select>
+                <span id="equipmentCount">Total: 0 equipamentos</span>
+
+                <label for="searchInput">Buscar por Nº Série ou Patrimônio:</label>
+                <input type="text" id="searchInput" placeholder="Digite SN, Patrimônio ou TAG...">
+
+                <label for="maintenanceFilter">Filtrar por Manutenção:</label>
+                <select id="maintenanceFilter">
+                    <option value="">Todos</option>
+                    <option value="Em Manutenção Externa">Em Manutenção Externa</option>
+                </select>
+            </div>
+
+            <button id="exportButton" style="margin-bottom: 15px;">Exportar Tabela para Excel</button>
+
+            <table id="equipmentTable">
+                <thead>
+                    <tr>
+                        <th>TAG</th>
+                        <th>Equipamento</th>
+                        <th>Modelo</th>
+                        <th>Fabricante</th>
+                        <th>Setor</th>
+                        <th>Nº Série</th>
+                        <th>Patrimônio</th>
+                        <th>Status Calibração</th>
+                        <th>Data Vencimento Calibração</th>
+                        <!-- <th>Status Manutenção</th> -->
+                    </tr>
+                    <tr id="headerFilters">
+                        </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="osSection" class="section-container hidden">
+        <h2>Ordens de Serviço em Aberto (OS)</h2>
+        <div id="osTableContainer" class="equipment-table-container"> 
+            <p>Visão simplificada das OS em aberto com status de calibração e manutenção.</p>
+            <span id="osCount">Total: 0 OS</span>
+            <button id="exportOsButton" style="margin-bottom: 15px;">Exportar OS para Excel</button>
+
+            <table id="osTable">
+                <thead>
+                    <tr>
+                        <th>OS</th>
+                        <th>Patrimônio</th>
+                        <th>Nº de Série</th>
+                        <th>Equipamento</th>
+                        <th>Modelo</th>
+                        <th>Fabricante</th>
+                        <!-- <th>Status Calibração</th> -->
+                        <!-- <th>Status Manutenção</th> -->
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="rondaSection" class="section-container hidden">
+        <h2>Ronda de Equipamentos</h2>
+        <div id="rondaControls" style="margin-bottom: 20px; padding: 15px; background-color: #f0f8ff; border: 1px solid #cfe2ff; border-radius: 8px;">
+            <label for="rondaSectorSelect">Selecionar Setor para Ronda:</label>
+            <select id="rondaSectorSelect">
+                <option value="">Selecione um Setor</option>
             </select>
-            <span id="equipmentCount">Total: 0 equipamentos</span>
-
-            <label for="searchInput">Buscar por Nº Série ou Patrimônio:</label>
-            <input type="text" id="searchInput" placeholder="Digite SN, Patrimônio ou TAG...">
-
-            <label for="maintenanceFilter">Filtrar por Manutenção:</label>
-            <select id="maintenanceFilter">
-                <option value="">Todos</option>
-                <option value="Em Manutenção Externa">Em Manutenção Externa</option>
-                </select>
+            <button id="startRondaButton" style="margin-left: 10px;">Iniciar Ronda</button>
+            <input type="file" id="rondaFileInput" accept=".xls,.xlsx" style="margin-left: 20px;">
+            <button id="loadRondaButton">Carregar Ronda Existente</button>
         </div>
 
-        <button id="exportButton" style="margin-bottom: 15px;">Exportar Tabela para Excel</button>
+        <span id="rondaCount">Total: 0 Equipamentos na Ronda</span>
+        <button id="saveRondaButton" style="margin-bottom: 15px;">Salvar Ronda para Excel</button>
 
-        <table id="equipmentTable">
-            <thead>
-                <tr>
-                    <th>TAG</th>
-                    <th>Equipamento</th>
-                    <th>Modelo</th>
-                    <th>Fabricante</th>
-                    <th>Setor</th>
-                    <th>Nº Série</th>
-                    <th>Patrimônio</th>
-                    <th>Status Calibração</th>
-                    <th>Data Vencimento Calibração</th>
-                    <th>Status Manutenção</th>
-                </tr>
-            </thead>
-            <tbody>
+        <div id="rondaTableContainer" class="equipment-table-container">
+            <table id="rondaTable">
+                <thead>
+                    <tr>
+                        <th>TAG</th>
+                        <th>Equipamento</th>
+                        <th>Setor</th>
+                        <th>Disponibilidade</th>
+                        <th>Localização (Sala/Quarto)</th>
+                        <th>Observações da Ronda</th>
+                    </tr>
+                </thead>
+                <tbody>
                 </tbody>
-        </table>
+            </table>
+        </div>
     </div>
+
 
     <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
     <script type="module" src="js/main.js"></script>

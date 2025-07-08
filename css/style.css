@@ -35,35 +35,64 @@ button {
 button:hover {
     background-color: #0056b3;
 }
-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 20px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-}
-th, td {
-    border: 1px solid #ddd;
-    padding: 12px;
-    text-align: left;
-}
-th {
-    background-color: #e9ecef;
-    font-weight: bold;
-    color: #495057;
-}
-tr:nth-child(even) {
-    background-color: #f8f9fa; /* Mantido para linhas não destacadas */
-}
-tr:hover {
-    background-color: #e2e6ea;
-}
-#equipmentTableContainer {
+
+/* Estilos para os containers das tabelas */
+/* Usado para #equipmentTableContainer e #osTableContainer */
+.equipment-table-container {
     margin-top: 30px;
     background-color: #fff;
     padding: 20px;
     border-radius: 8px;
     box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
+    overflow-x: auto; /* Adiciona barra de rolagem horizontal se a tabela for muito larga */
+    -webkit-overflow-scrolling: touch; /* Melhora a rolagem em dispositivos móveis */
 }
+
+/* Estilos gerais para as tabelas */
+table {
+    width: 100%; 
+    border-collapse: collapse;
+    margin-top: 20px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    table-layout: fixed; /* Fixa a largura das colunas, útil com max-width */
+    font-size: 0.85em; /* Reduz o tamanho da fonte da tabela para torná-la mais compacta */
+}
+
+/* Estilos para células de cabeçalho e corpo da tabela */
+th, td {
+    border: 1px solid #ddd;
+    padding: 8px; /* Padding ligeiramente reduzido */
+    text-align: left;
+    white-space: nowrap; /* Tenta manter o texto em uma única linha */
+    overflow: hidden; /* Oculta conteúdo que excede a largura */
+    text-overflow: ellipsis; /* Adiciona '...' para texto oculto */
+    max-width: 150px; /* Largura máxima padrão para colunas */
+}
+
+/* Estilos para o cabeçalho fixo da tabela (thead) */
+#equipmentTable thead, #osTable thead {
+    position: sticky;
+    top: 0;
+    z-index: 20; /* Garante que o thead fique acima de outros elementos ao rolar */
+    background-color: #f8f9fa; /* Fundo para o cabeçalho fixo */
+}
+/* Estilo para os cabeçalhos originais (primeira linha do thead) */
+#equipmentTable thead tr:first-child th,
+#osTable thead tr:first-child th {
+    background-color: #e9ecef; 
+    font-weight: bold;
+    color: #495057;
+}
+
+/* Estilos para linhas pares e hover na tabela */
+tr:nth-child(even) {
+    background-color: #f8f9fa; 
+}
+tr:hover {
+    background-color: #e2e6ea;
+}
+
+/* Estilos para o container de filtros globais (acima da tabela) */
 #filterContainer {
     margin-bottom: 20px;
     padding: 15px;
@@ -75,14 +104,16 @@ tr:hover {
     align-items: center;
     gap: 15px;
 }
-#sectorFilter, #calibrationStatusFilter {
+/* Estilos para os dropdowns de filtro globais */
+#sectorFilter, #calibrationStatusFilter, #maintenanceFilter {
     padding: 10px;
     border: 1px solid #ced4da;
     border-radius: 5px;
     background-color: white;
     min-width: 180px;
 }
-#equipmentCount {
+/* Estilo para o contador de equipamentos */
+#equipmentCount, #osCount { /* Aplicado também ao contador de OS */
     font-weight: bold;
     margin-left: auto;
     padding: 5px 10px;
@@ -90,48 +121,258 @@ tr:hover {
     border-radius: 5px;
     color: #007bff;
 }
-#searchInput { /* Estilo para o campo de busca */
+/* Estilo para o campo de busca global */
+#searchInput { 
     padding: 10px;
     border: 1px solid #ced4da;
     border-radius: 5px;
     background-color: white;
     min-width: 250px;
-    box-sizing: border-box; /* Garante que padding e border sejam incluídos na largura total */
+    box-sizing: border-box;
 }
 
-/* Estilos para destaque das linhas */
+/* Estilos para destaque das linhas (status de calibração e manutenção) */
 tr.not-calibrated {
     background-color: #ffcccc; /* Vermelho claro */
     border-left: 5px solid #d9534f; /* Borda vermelha */
 }
-tr.calibrated-dhme { /* Verde para Calibrado (DHMED) - MAIS FORTE */
-    background-color: #b3e6b3; /* Verde claro forte */
-    border-left: 5px solid #28a745; /* Borda verde mais escura */
+tr.calibrated-dhme { /* Verde claro forte para QUALQUER equipamento calibrado pela consolidação */
+    background-color: #b3e6b3; 
+    border-left: 5px solid #28a745; 
 }
-tr.calibrated-sciencetech { /* Azul para Calibrado (Sciencetech) - MAIS FORTE */
-    background-color: #b3d9ff; /* Azul claro forte */
-    border-left: 5px solid #007bff; /* Borda azul mais escura */
-}
-tr.divergent-calibrated { /* Amarelo para Não Cadastrado (DHMED) */
+/* As classes de fornecedores específicos de calibração foram removidas, pois a coloração agora é genérica */
+/* tr.calibrated-sciencetech { 
+    background-color: #b3d9ff; 
+    border-left: 5px solid #007bff; 
+} */
+/* Classes de divergência que não são mais usadas para coloração na tabela principal,
+   mas podem ser mantidas para referência ou uso futuro. */
+tr.divergent-calibrated { 
     background-color: #fffacd; 
     border-left: 5px solid #ffcc00; 
 }
-tr.divergent-calibrated-sciencetech { /* Laranja para Não Cadastrado (Sciencetech) */
+tr.divergent-calibrated-sciencetech { 
     background-color: #ffdab9; 
     border-left: 5px solid #ff8c00; 
 }
-
 /* NOVO ESTILO PARA MANUTENÇÃO EXTERNA - MUDA COR DA FONTE E ESTILO */
 tr.in-external-maintenance {
-    color: #6a0dad; /* Cor roxa escura para o texto */
-    font-style: italic; /* Texto em itálico */
-    font-weight: bold; /* Texto em negrito */
-    /* Você pode adicionar um background-color bem sutil aqui se quiser uma camada extra */
-    /* background-color: rgba(200, 200, 200, 0.1); */ /* Cinza muito claro e quase transparente */
+    color: #dc3545; /* Cor vermelha para o texto (mudado de roxo) */
+    font-style: italic; 
+    font-weight: bold; 
 }
-
-/* Estilo para calibração vencida (se você adicionar a lógica no JS) */
-tr.expired-calibration {
+tr.expired-calibration { /* Se houver lógica de calibração vencida */
     background-color: #fff3cd;
     border-left: 5px solid #ffc107;
 }
+
+/* Reduzir o tamanho da fonte para os filtros globais e botões para consistência */
+#filterContainer label,
+#filterContainer select,
+#filterContainer input[type="text"],
+button {
+    font-size: 0.9em;
+    padding: 8px 12px;
+}
+#equipmentCount {
+    font-size: 0.9em;
+}
+
+/* ############################################################### */
+/* ESTILOS PARA FILTROS DE CABEÇALHO PERSONALIZADOS */
+/* ############################################################### */
+
+/* Estilo para a linha de filtros do cabeçalho */
+#equipmentTable thead tr#headerFilters th {
+    padding: 5px; 
+    vertical-align: middle; 
+    background-color: #e2e6ea; /* Fundo para a linha de filtro */
+}
+
+/* Estilos para os inputs de filtro de texto nos cabeçalhos da tabela */
+#equipmentTable thead tr#headerFilters input[type="text"] {
+    width: 90%; 
+    padding: 3px 5px; 
+    border: 1px solid #ced4da;
+    border-radius: 3px;
+    font-size: 0.8em; 
+    box-sizing: border-box; 
+}
+
+/* Estilos para os botões que abrem os popups de filtro */
+#equipmentTable thead tr#headerFilters th .filter-button {
+    background-color: #f8f9fa;
+    border: 1px solid #ced4da;
+    border-radius: 3px;
+    padding: 3px 6px;
+    cursor: pointer;
+    font-size: 0.8em;
+    display: flex; /* Para alinhar texto e seta */
+    align-items: center;
+    justify-content: space-between; /* Espaça texto e seta */
+    width: 95%; /* Ajusta à célula */
+    box-sizing: border-box;
+    white-space: nowrap; /* Impede que o texto do botão quebre linha */
+    overflow: hidden;
+    text-overflow: ellipsis; /* Adiciona ... se o texto for muito longo */
+}
+
+/* Seta para baixo nos botões de filtro */
+#equipmentTable thead tr#headerFilters th .filter-button::after {
+    content: '▼'; /* Caractere de seta para baixo */
+    font-size: 0.7em;
+    margin-left: 5px;
+}
+
+/* Estilos para o popup de filtro que aparece */
+#equipmentTable thead tr#headerFilters th .filter-popup {
+    display: none; /* Esconde por padrão */
+    position: absolute;
+    /* Ajusta a posição para que o popup apareça abaixo do botão e esteja visível */
+    top: 100%; /* Inicia na base do elemento pai (th) */
+    left: 0;
+    z-index: 100; /* Garante que fique acima de outros elementos da tabela */
+    background-color: #fff;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    min-width: 180px; /* Largura mínima do popup */
+    max-height: 250px; /* Altura máxima com rolagem */
+    overflow-y: auto; /* Adiciona rolagem vertical se o conteúdo for muito alto */
+    padding: 10px;
+    /* Adiciona margem superior para espaçamento do cabeçalho */
+    margin-top: 5px; 
+}
+
+/* Classe para mostrar o popup */
+#equipmentTable thead tr#headerFilters th .filter-popup.active {
+    display: block; 
+}
+
+/* Estilo para cada label (checkbox + texto) dentro do popup */
+#equipmentTable thead tr#headerFilters th .filter-popup label {
+    display: block; /* Cada checkbox/label em uma nova linha */
+    margin-bottom: 5px;
+    font-size: 0.85em;
+    cursor: pointer;
+    padding: 2px 0;
+    user-select: none; /* Impede seleção de texto ao clicar no label */
+}
+
+/* Hover nos itens do popup */
+#equipmentTable thead tr#headerFilters th .filter-popup label:hover {
+    background-color: #f0f0f0;
+}
+
+/* Espaçamento para o checkbox dentro do label */
+#equipmentTable thead tr#headerFilters th .filter-popup input[type="checkbox"] {
+    margin-right: 5px;
+}
+
+/* Estilo para o campo de busca dentro do popup */
+#equipmentTable thead tr#headerFilters th .filter-popup .filter-search-input {
+    width: calc(100% - 10px); /* 100% menos padding para não vazar */
+    padding: 5px;
+    margin-bottom: 8px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    box-sizing: border-box;
+    font-size: 0.85em;
+}
+
+/* Estilo para o label "Selecionar Todos" no popup */
+#equipmentTable thead tr#headerFilters th .filter-popup label.select-all-label {
+    font-weight: bold;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 5px;
+    margin-bottom: 8px;
+}
+
+/* ############################################################### */
+/* ESTILOS PARA ALTERNÂNCIA DE SEÇÕES (EQUIPAMENTOS / OS) */
+/* ############################################################### */
+
+/* Classe para ocultar elementos */
+.hidden {
+    display: none !important; /* !important para garantir que sobrescreve outras regras */
+}
+
+/* Estilos para os containers das seções (div#equipmentSection, div#osSection) */
+.section-container {
+    margin-top: 20px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 20px;
+    background-color: #ffffff;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+/* Estilos para os botões de alternância de seção (Ver Equipamentos / Ver OS) */
+.toggle-section-button {
+    padding: 8px 15px;
+    margin-right: 10px;
+    background-color: #f0f0f0;
+    color: #333;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.95em;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.toggle-section-button:hover {
+    background-color: #e0e0e0;
+    border-color: #bbb;
+}
+
+/* Estilo para o botão ativo/selecionado */
+.toggle-section-button.active {
+    background-color: #007bff; /* Cor azul forte para o botão ativo */
+    color: white;
+    border-color: #007bff;
+    font-weight: bold;
+}
+
+/* Estilos para a seção de Ronda */
+#rondaSection {
+    /* Reutiliza .section-container */
+}
+
+/* Estilos para os controles da Ronda */
+#rondaControls {
+    /* Reutiliza o estilo do #filterContainer para consistência */
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 15px;
+}
+
+#rondaControls select,
+#rondaControls button,
+#rondaControls input[type="file"] {
+    font-size: 0.9em;
+    padding: 8px 12px;
+}
+
+/* Estilo para inputs de texto e selects dentro da tabela de Ronda */
+#rondaTable input[type="text"],
+#rondaTable select {
+    width: 90%;
+    padding: 3px 5px;
+    border: 1px solid #ced4da;
+    border-radius: 3px;
+    font-size: 0.85em;
+    box-sizing: border-box;
+}
+
+/* Estilo para o contador da Ronda */
+#rondaCount {
+    font-weight: bold;
+    margin-left: auto;
+    padding: 5px 10px;
+    background-color: #e0f7fa;
+    border-radius: 5px;
+    color: #007bff;
+}
+
+/* Os estilos de tabela existentes (table, th, td, etc.) já se aplicarão à #rondaTable */
