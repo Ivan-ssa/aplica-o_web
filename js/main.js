@@ -532,12 +532,83 @@ exportButton.addEventListener('click', exportTableToExcel);
 
 exportOsButton.addEventListener('click', () => {
     const osTable = document.getElementById('osTable');
-    const ws = XLSX.utils.table_to_sheet(osTable);
+    const rows = osTable.querySelectorAll('tr');
+    const data = [];
+
+    // --- 1. Definir os Estilos ---
+    // Estilo para o cabeçalho
+    const headerStyle = {
+        font: { bold: true, color: { rgb: "FFFFFFFF" } }, // Fonte branca e em negrito
+        fill: { fgColor: { rgb: "FF4F81BD" } }  // Fundo azul escuro
+    };
+    // Estilo para linhas "Calibrado"
+    const calibratedStyle = {
+        fill: { fgColor: { rgb: "FFB3E6B3" } } // Verde claro
+    };
+    // Estilo para linhas "Não Calibrado"
+    const notCalibratedStyle = {
+        fill: { fgColor: { rgb: "FFFFCCCC" } } // Vermelho claro
+    };
+    // Estilo para fonte em "Manutenção Externa" (pode ser combinado com os outros)
+    const maintenanceFontStyle = {
+        font: { color: { rgb: "FFDC3545" }, bold: true, italic: true } // Fonte vermelha, negrito, itálico
+    };
+
+    // --- 2. Processar Cabeçalho ---
+    const headerRow = [];
+    osTable.querySelectorAll('thead tr th').forEach(th => {
+        headerRow.push({ v: th.textContent, s: headerStyle });
+    });
+    data.push(headerRow);
+
+    // --- 3. Processar Linhas do Corpo da Tabela ---
+    osTable.querySelectorAll('tbody tr').forEach(tr => {
+        const rowData = [];
+        // Checa se a linha tem dados ou é a mensagem de "nenhuma OS encontrada"
+        if (tr.querySelector('td').colSpan > 1) {
+            return; // Pula a linha de mensagem
+        }
+
+        // Determina o estilo base da linha (cor de fundo)
+        let baseStyle = {};
+        if (tr.classList.contains('calibrated-dhme')) {
+            baseStyle = calibratedStyle;
+        } else if (tr.classList.contains('not-calibrated')) {
+            baseStyle = notCalibratedStyle;
+        }
+        
+        tr.querySelectorAll('td').forEach(td => {
+            let cellStyle = { ...baseStyle }; // Começa com o estilo de fundo
+
+            // Se a linha também estiver em manutenção, mescla o estilo da fonte
+            if (tr.classList.contains('in-external-maintenance')) {
+                // Combina o estilo de fonte com qualquer preenchimento que já exista
+                cellStyle.font = { ...maintenanceFontStyle.font };
+            }
+            
+            rowData.push({ v: td.textContent, s: cellStyle });
+        });
+        data.push(rowData);
+    });
+
+    // --- 4. Criar a Planilha e o Arquivo ---
+    const ws = XLSX.utils.aoa_to_sheet(data);
+
+    // Definir largura das colunas para melhor visualização
+    ws['!cols'] = [
+        { wch: 10 }, // OS
+        { wch: 15 }, // Patrimônio
+        { wch: 20 }, // Nº de Série
+        { wch: 30 }, // Equipamento
+        { wch: 25 }, // Modelo
+        { wch: 25 }, // Fabricante
+        { wch: 20 }  // Setor
+    ];
+
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "OS Abertas Filtradas");
-    XLSX.writeFile(wb, "os_abertas_filtradas.xlsx");
+    XLSX.writeFile(wb, `os_abertas_filtradas_${new Date().toISOString().slice(0, 10)}.xlsx`);
 });
-
 showEquipmentButton.addEventListener('click', () => toggleSectionVisibility('equipmentSection'));
 showOsButton.addEventListener('click', () => toggleSectionVisibility('osSection'));
 showRondaButton.addEventListener('click', () => toggleSectionVisibility('rondaSection')); 
