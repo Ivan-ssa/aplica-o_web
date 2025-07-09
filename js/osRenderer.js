@@ -25,7 +25,7 @@ export function renderOsTable(
     if (osData.length === 0) {
         const row = tableBodyElement.insertRow();
         const cell = row.insertCell();
-        cell.colSpan = 8; 
+        cell.colSpan = 7; // Ajustado para 7 colunas
         cell.textContent = 'Nenhuma Ordem de Serviço em aberto encontrada.';
         cell.style.textAlign = 'center';
         document.getElementById('osCount').textContent = `Total: 0 OS`;
@@ -84,15 +84,17 @@ export function renderOsTable(
             row.classList.add('in-external-maintenance'); 
         }
 
-
         row.insertCell().textContent = os.OS ?? '';
         row.insertCell().textContent = os.Patrimonio ?? os.Patrimônio ?? ''; 
         row.insertCell().textContent = os.NumeroSerie ?? os?.['Nº de Série'] ?? os.NºdeSérie ?? ''; 
         row.insertCell().textContent = os.Equipamento ?? '';
         row.insertCell().textContent = os.Modelo ?? '';
         row.insertCell().textContent = os.Fabricante ?? '';
-        // row.insertCell().textContent = osStatusCalib; 
-        // row.insertCell().textContent = osStatusManutencao; 
+        
+        // **** LINHA ADICIONADA PARA PREENCHER O SETOR ****
+        row.insertCell().textContent = correspondingEquipment?.Setor ?? 'Não Cadastrado';
+        // *************************************************
+
     });
 
     document.getElementById('osCount').textContent = `Total: ${osCount} OS`;
