@@ -193,7 +193,7 @@ async function handleProcessFile() {
                     const dataCalibracao = item.DataCalibracaoConsolidada || item['Data de Calibração'] || ''; 
 
                     if (sn && fornecedor) {
-                        window.consolidatedCalibratedMap.set(sn, { fornecedor: fornecedor, dataCalibricao: dataCalibracao });
+                        window.consolidatedCalibratedMap.set(sn, { fornecedor: fornecedor, dataCalibricao: dataCalibricao });
                     }
                 });
                 outputDiv.textContent += `\n${window.consolidatedCalibratedMap.size} SNs de calibração consolidados encontrados.`;
@@ -460,110 +460,89 @@ function applyAllFiltersAndRender() {
 }
 
 // ===================================================================================
-// === NOVA FUNÇÃO DE EXPORTAÇÃO USANDO A BIBLIOTECA ExcelJS ===
+// === FUNÇÃO DE EXPORTAÇÃO REVERTIDA PARA USAR A BIBLIOTECA xlsx.js ===
 // ===================================================================================
 /**
- * Exporta uma tabela HTML para um arquivo Excel estilizado usando ExcelJS.
- * @param {string} tableId - O ID da tabela HTML a ser exportada.
- * @param {string} fileName - O nome do arquivo a ser gerado.
+ * Função genérica para exportar uma tabela HTML para Excel com estilos usando a biblioteca xlsx.js
+ * @param {string} tableId - O ID da tabela a ser exportada.
+ * @param {string} fileName - O nome do arquivo Excel a ser gerado.
  */
-async function exportWithExcelJS(tableId, fileName) {
+function exportStyledTableToExcel(tableId, fileName) {
     const table = document.getElementById(tableId);
     if (!table) {
         alert(`Tabela com ID "${tableId}" não encontrada.`);
         return;
     }
-    
-    // Mostra um feedback para o usuário
-    outputDiv.textContent = `Gerando arquivo Excel estilizado: ${fileName}.xlsx...`;
+    const data = [];
 
-    try {
-        const workbook = new ExcelJS.Workbook();
-        const worksheet = workbook.addWorksheet('Dados');
+    // --- 1. Definir os Estilos ---
+    const headerStyle = {
+        font: { bold: true, color: { rgb: "FFFFFFFF" } },
+        fill: { fgColor: { rgb: "FF0056B3" } },
+        alignment: { vertical: "center", horizontal: "center" }
+    };
+    const calibratedFill = { fill: { fgColor: { rgb: "FFB3E6B3" } } }; // Verde
+    const notCalibratedFill = { fill: { fgColor: { rgb: "FFFFCCCC" } } }; // Vermelho
+    const maintenanceFont = { font: { color: { rgb: "FFDC3545" }, bold: true, italic: true } };
 
-        // --- Estilos ---
-        const headerFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0056B3' } }; // Azul
-        const headerFont = { name: 'Arial', bold: true, color: { argb: 'FFFFFFFF' } }; // Branco
-        const calibratedFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFB3E6B3' } }; // Verde
-        const notCalibratedFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFCCCC' } }; // Vermelho
-        const maintenanceFont = { name: 'Arial', color: { argb: 'FFDC3545' }, bold: true, italic: true };
+    // --- 2. Processar Cabeçalho ---
+    table.querySelectorAll('thead tr').forEach(tr => {
+        if (tr.id === 'headerFilters') return; 
 
-        // --- Cabeçalho ---
-        const headerHTMLRows = Array.from(table.querySelectorAll('thead tr'));
-        const headerData = [];
-        headerHTMLRows.forEach(tr => {
-            if (tr.id === 'headerFilters') return; // Pula a linha de filtros
-            const rowValues = [];
-            tr.querySelectorAll('th').forEach(th => rowValues.push(th.textContent));
-            headerData.push(rowValues);
+        const headerRowData = [];
+        tr.querySelectorAll('th').forEach(th => {
+            headerRowData.push({ v: th.textContent, s: headerStyle });
         });
+        data.push(headerRowData);
+    });
 
-        const headerRow = worksheet.addRow(headerData[0]);
-        headerRow.eachCell(cell => {
-            cell.fill = headerFill;
-            cell.font = headerFont;
-            cell.alignment = { vertical: 'middle', horizontal: 'center' };
-        });
+    // --- 3. Processar Corpo ---
+    table.querySelectorAll('tbody tr').forEach(tr => {
+        if (tr.querySelector('td')?.colSpan > 1) return; 
 
-        // --- Corpo ---
-        const bodyHTMLRows = Array.from(table.querySelectorAll('tbody tr'));
-        bodyHTMLRows.forEach(tr => {
-            if (tr.querySelector('td')?.colSpan > 1) return; // Pula linha de "nenhum dado"
-
-            const cellValues = Array.from(tr.querySelectorAll('td')).map(td => td.textContent);
-            const addedRow = worksheet.addRow(cellValues);
-
-            // Aplica estilos à linha que acabamos de adicionar
-            addedRow.eachCell(cell => {
-                if (tr.classList.contains('calibrated-dhme')) {
-                    cell.fill = calibratedFill;
-                } else if (tr.classList.contains('not-calibrated')) {
-                    cell.fill = notCalibratedFill;
-                }
-
-                if (tr.classList.contains('in-external-maintenance')) {
-                    cell.font = maintenanceFont;
-                }
-            });
-        });
-
-        // --- Ajustar Largura das Colunas ---
-        worksheet.columns.forEach(column => {
-            let maxLength = 0;
-            column.eachCell({ includeEmpty: true }, cell => {
-                let columnLength = cell.value ? cell.value.toString().length : 10;
-                if (columnLength > maxLength) {
-                    maxLength = columnLength;
-                }
-            });
-            column.width = maxLength < 10 ? 10 : maxLength + 2;
-        });
+        let rowStyle = {};
         
-        // --- Gerar e Baixar o Arquivo ---
-        const buffer = await workbook.xlsx.writeBuffer();
-        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = `${fileName}_${new Date().toISOString().slice(0, 10)}.xlsx`;
-        link.click();
-        URL.revokeObjectURL(link.href);
-        outputDiv.textContent = `Arquivo ${fileName}.xlsx gerado com sucesso!`;
+        if (tr.classList.contains('calibrated-dhme')) {
+            rowStyle.fill = calibratedFill.fill;
+        } else if (tr.classList.contains('not-calibrated')) {
+            rowStyle.fill = notCalibratedFill.fill;
+        }
+        if (tr.classList.contains('in-external-maintenance')) {
+            rowStyle.font = maintenanceFont.font;
+        }
+        
+        const rowData = [];
+        tr.querySelectorAll('td').forEach(td => {
+            rowData.push({ v: td.textContent, s: rowStyle });
+        });
+        data.push(rowData);
+    });
 
-    } catch (error) {
-        console.error("Erro ao gerar arquivo Excel com ExcelJS:", error);
-        outputDiv.textContent = `Erro ao gerar arquivo: ${error.message}`;
-        alert("Ocorreu um erro ao gerar o arquivo Excel. Verifique o console para mais detalhes.");
+    if (data.length <= 1) {
+        alert("Não há dados na tabela para exportar.");
+        return;
     }
+
+    // --- 4. Criar e Salvar Planilha ---
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    
+    const colWidths = data[0].map((_, i) => ({
+        wch: data.reduce((w, r) => Math.max(w, r[i]?.v?.toString().length || 10), 10) + 2
+    }));
+    ws['!cols'] = colWidths;
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Dados Filtrados");
+    XLSX.writeFile(wb, `${fileName}_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
 
-
-// --- EVENT LISTENERS ATUALIZADOS PARA USAR A NOVA FUNÇÃO ---
+// --- Event Listeners atualizados ---
 exportButton.addEventListener('click', () => {
-    exportWithExcelJS('equipmentTable', 'equipamentos_filtrados');
+    exportStyledTableToExcel('equipmentTable', 'equipamentos_filtrados');
 });
 
 exportOsButton.addEventListener('click', () => {
-    exportWithExcelJS('osTable', 'os_abertas_filtradas');
+    exportStyledTableToExcel('osTable', 'os_abertas_filtradas');
 });
 // -----------------------------------------------------------------
 
