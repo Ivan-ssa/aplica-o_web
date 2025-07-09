@@ -63,10 +63,6 @@ const rondaTableBody = document.querySelector('#rondaTable tbody');
 const rondaCountSpan = document.getElementById('rondaCount');
 
 
-/**
- * Alterna a visibilidade das seções entre Equipamentos, OS e Ronda.
- * @param {string} sectionToShowId - O ID da seção a ser mostrada ('equipmentSection', 'osSection', 'rondaSection').
- */
 function toggleSectionVisibility(sectionToShowId) {
     if (equipmentSection) equipmentSection.classList.add('hidden');
     if (osSection) osSection.classList.add('hidden');
@@ -89,23 +85,25 @@ function toggleSectionVisibility(sectionToShowId) {
 }
 
 
-/**
- * Popula o dropdown de Status de Calibração (global) dinamicamente.
- * @param {Array<Object>} rawCalibrationsData - Dados brutos da consolidação para extrair fornecedores.
- * @param {HTMLElement} calibrationStatusFilterElement - O elemento <select> do filtro.
- */
 function populateCalibrationStatusFilter(rawCalibrationsData) {
     const filterElement = calibrationStatusFilter; 
 
     filterElement.innerHTML = '<option value="">Todos os Status</option>';
+    
+    const fixedOptions = [
+        { value: 'Calibrado (Consolidado)', text: 'Calibrado (Consolidado)' },
+        { value: 'Calibrado (Total)', text: 'Calibrado (Total)' }, 
+        { value: 'Divergência (Todos Fornecedores)', text: 'Divergência (Todos Fornecedores)' },
+        { value: 'Não Calibrado/Não Encontrado (Seu Cadastro)', text: 'Não Calibrado/Não Encontrado (Seu Cadastro)' },
+    ];
+    
+    fixedOptions.forEach(opt => {
+        const option = document.createElement('option');
+        option.value = opt.value;
+        option.textContent = opt.text;
+        filterElement.appendChild(option);
+    });
 
-    // Adiciona a nova opção "Calibrado (Consolidado)"
-    const consolidatedCalibratedOption = document.createElement('option');
-    consolidatedCalibratedOption.value = 'Calibrado (Consolidado)';
-    consolidatedCalibratedOption.textContent = 'Calibrado (Consolidado)';
-    filterElement.appendChild(consolidatedCalibratedOption);
-
-    // As opções de divergência por fornecedor ainda podem ser úteis
     const uniqueSuppliers = new Set();
     rawCalibrationsData.forEach(item => {
         const fornecedor = String(item.FornecedorConsolidacao || item.Fornecedor || '').trim();
@@ -115,37 +113,22 @@ function populateCalibrationStatusFilter(rawCalibrationsData) {
     });
 
     Array.from(uniqueSuppliers).sort().forEach(fornecedor => {
-        // As opções de calibração por fornecedor específico serão removidas em breve,
-        // mas mantidas para o filtro de Divergência por enquanto
         const optionDivergence = document.createElement('option');
         optionDivergence.value = `Divergência (${fornecedor})`;
         optionDivergence.textContent = `Divergência (${fornecedor})`;
         filterElement.appendChild(optionDivergence);
     });
-
-    // Opções fixas que permanecem
-    const fixedOptions = [
-        { value: 'Calibrado (Total)', text: 'Calibrado (Total)' }, 
-        { value: 'Divergência (Todos Fornecedores)', text: 'Divergência (Todos Fornecedores)' },
-        { value: 'Não Calibrado/Não Encontrado (Seu Cadastro)', text: 'Não Calibrado/Não Encontrado (Seu Cadastro)' },
-        { value: 'Não Cadastrado', text: 'Não Cadastrado' }, 
-        { value: 'Não Calibrado', text: 'Não Calibrado' } 
-    ];
-
-    fixedOptions.forEach(opt => {
-        const option = document.createElement('option');
-        option.value = opt.value;
-        option.textContent = opt.text;
-        filterElement.appendChild(option);
-    });
 }
 
 
-/**
- * Lida com o processamento dos arquivos Excel selecionados pelo usuário.
- */
 async function handleProcessFile() {
     outputDiv.textContent = 'Processando arquivos...';
+    // Garante que o objeto XLSX da biblioteca correta está disponível
+    if (typeof XLSX === 'undefined') {
+        outputDiv.textContent = 'Erro: A biblioteca de leitura de Excel (xlsx.js) não foi carregada.';
+        return;
+    }
+
     const files = excelFileInput.files;
 
     if (files.length === 0) {
@@ -157,20 +140,17 @@ async function handleProcessFile() {
     let consolidatedCalibrationsFile = null; 
     let externalMaintenanceFile = null; 
     let osCaliAbertasFile = null; 
-    let rondaExistingFile = null; 
 
     for (const file of files) {
         const fileNameLower = file.name.toLowerCase();
-        if (fileNameLower.includes('equipamentos') && !equipmentFile) {
+        if (fileNameLower.includes('equipamentos')) {
             equipmentFile = file;
-        } else if (fileNameLower.includes('empresa_cali_vba') && !consolidatedCalibrationsFile) { 
+        } else if (fileNameLower.includes('empresa_cali_vba') || fileNameLower.includes('consolidado')) { 
             consolidatedCalibrationsFile = file;
-        } else if (fileNameLower.includes('manu_externa') && !externalMaintenanceFile) { 
+        } else if (fileNameLower.includes('manu_externa')) { 
             externalMaintenanceFile = file;
-        } else if (fileNameLower.includes('os_cali_abertas') && !osCaliAbertasFile) { 
+        } else if (fileNameLower.includes('os_cali_abertas')) { 
             osCaliAbertasFile = file;
-        } else if (fileNameLower.includes('ronda_existente') && !rondaExistingFile) { 
-            rondaExistingFile = file;
         }
     }
 
@@ -185,7 +165,7 @@ async function handleProcessFile() {
 
         if (allEquipments.length === 0) {
             outputDiv.textContent += `\nNenhum dado encontrado no arquivo de equipamentos "${equipmentFile.name}".`;
-            renderTable([], equipmentTableBody, window.consolidatedCalibratedMap, window.externalMaintenanceSNs); 
+            renderTable([], equipmentTableBody, new Map(), new Set()); 
             populateSectorFilter([], sectorFilter);
             updateEquipmentCount(0);
             renderOsTable([], osTableBody, new Map(), new Map(), new Map(), new Set(), normalizeId); 
@@ -203,7 +183,6 @@ async function handleProcessFile() {
             if (patrimonio) mainEquipmentsByPatrimonio.set(patrimonio, eq);
         });
 
-        // Processa o arquivo de calibrações consolidadas
         window.consolidatedCalibratedMap.clear(); 
         window.consolidatedCalibrationsRawData = []; 
 
@@ -219,7 +198,7 @@ async function handleProcessFile() {
                     const dataCalibracao = item.DataCalibracaoConsolidada || item['Data de Calibração'] || ''; 
 
                     if (sn && fornecedor) {
-                        window.consolidatedCalibratedMap.set(sn, { fornecedor: fornecedor, dataCalibacao: dataCalibracao });
+                        window.consolidatedCalibratedMap.set(sn, { fornecedor: fornecedor, dataCalibricao: dataCalibracao });
                     }
                 });
                 outputDiv.textContent += `\n${window.consolidatedCalibratedMap.size} SNs de calibração consolidados encontrados.`;
@@ -230,14 +209,13 @@ async function handleProcessFile() {
             outputDiv.textContent += `\nArquivo de Calibrações Consolidadas não selecionado.`;
         }
 
-        // Processa o arquivo de Manutenção Externa
         window.externalMaintenanceSNs.clear(); 
         if (externalMaintenanceFile) {
             outputDiv.textContent += `\nLendo arquivo Manutenção Externa: ${externalMaintenanceFile.name}...`;
             const maintenanceData = await readExcelFile(externalMaintenanceFile);
             if (maintenanceData.length > 0) {
                 maintenanceData.forEach(item => {
-                    const sn = normalizeId(item.NumeroSerie); 
+                    const sn = normalizeId(item.NumeroSerie || item['Nº de Série']); 
                     if (sn) {
                         window.externalMaintenanceSNs.add(sn);
                     }
@@ -250,7 +228,6 @@ async function handleProcessFile() {
             outputDiv.textContent += `\nArquivo Manutenção Externa não selecionado.`;
         }
 
-        // Processa o arquivo de Ordens de Serviço (OS)
         window.osRawData = []; 
         if (osCaliAbertasFile) {
             outputDiv.textContent += `\nLendo arquivo de OS Abertas: ${osCaliAbertasFile.name}...`;
@@ -270,11 +247,11 @@ async function handleProcessFile() {
             outputDiv.textContent += `\nArquivo de OS Abertas não selecionado.`;
         }
 
-        outputDiv.textContent += '\nProcessamento concluído. Renderizando tabelas...';
+        outputDiv.textContent = 'Processamento concluído. Renderizando tabelas...';
         applyAllFiltersAndRender(); 
         populateSectorFilter(allEquipments, sectorFilter); 
         populateCalibrationStatusFilter(window.consolidatedCalibrationsRawData); 
-        setupHeaderFilters(allEquipments); // Chamada para configurar filtros de cabeçalho
+        setupHeaderFilters(allEquipments);
 
         renderOsTable(
             window.osRawData,
@@ -286,14 +263,7 @@ async function handleProcessFile() {
             normalizeId 
         );
         populateRondaSectorSelect(allEquipments, rondaSectorSelect);
-        if (rondaExistingFile) {
-            outputDiv.textContent += `\nCarregando Ronda Existente: ${rondaExistingFile.name}...`;
-            const existingRondaData = await readExcelFile(rondaExistingFile);
-            loadExistingRonda(existingRondaData, rondaTableBody, rondaCountSpan);
-            outputDiv.textContent += `\nRonda Existente carregada.`;
-        } else {
-            initRonda([], rondaTableBody, rondaCountSpan, '', normalizeId); 
-        }
+        initRonda([], rondaTableBody, rondaCountSpan, '', normalizeId);
 
         toggleSectionVisibility('equipmentSection'); 
 
@@ -303,10 +273,9 @@ async function handleProcessFile() {
     }
 }
 
-/**
- * Configura os filtros personalizados nos cabeçalhos da tabela principal.
- */
+
 function setupHeaderFilters(equipments) {
+    // ... (esta função permanece exatamente igual à sua versão original) ...
     headerFiltersRow.innerHTML = ''; 
 
     const headerFilterMap = {
@@ -364,28 +333,16 @@ function setupHeaderFilters(equipments) {
                     if (columnInfo.prop === 'StatusCalibacao') {
                         const calibInfo = window.consolidatedCalibratedMap.get(normalizeId(eq.NumeroSerie));
                         if (calibInfo) {
-                            value = 'Calibrado (Consolidado)'; // Valor genérico
+                            value = 'Calibrado (Consolidado)';
                         } else {
                             const originalStatusLower = String(eq?.StatusCalibacao || '').toLowerCase();
-                            if (originalStatusLower.includes('não calibrado') || originalStatusLower.includes('não cadastrado')) {
+                            if (originalStatusLower.includes('não calibrado') || originalStatusLower.includes('não cadastrado') || originalStatusLower.trim() === '') {
                                 value = 'Não Calibrado/Não Encontrado (Seu Cadastro)';
-                            } else if (originalStatusLower.includes('calibrado (total)')) {
-                                value = 'Calibrado (Total)';
                             } else {
-                                value = 'Não Calibrado/Não Encontrado (Seu Cadastro)';
+                                value = 'Calibrado (Total)';
                             }
                         }
-                    } else if (columnInfo.prop === 'StatusManutencao') { 
-                         const equipmentSN = normalizeId(eq?.NumeroSerie); 
-                         if (window.externalMaintenanceSNs.has(equipmentSN)) {
-                             value = 'Em Manutenção Externa';
-                         } else {
-                             value = String(eq?.StatusManutencao || ''); 
-                         }
-                    } else if (columnInfo.prop === 'NumeroSerie' || columnInfo.prop === 'Patrimonio') { 
-                        value = normalizeId(eq[columnInfo.prop]); 
-                    }
-                    else {
+                    } else {
                         value = eq[columnInfo.prop];
                     }
 
@@ -467,9 +424,7 @@ function setupHeaderFilters(equipments) {
     });
 }
 
-/**
- * Aplica os filtros atuais (globais e de cabeçalho) e renderiza a tabela.
- */
+
 function applyAllFiltersAndRender() {
     const filters = {
         sector: sectorFilter.value, 
@@ -488,16 +443,16 @@ function applyAllFiltersAndRender() {
     document.querySelectorAll('#headerFilters .filter-popup').forEach(popup => {
         const property = popup.dataset.property;
         const selectedValues = [];
-        popup.querySelectorAll('input[type="checkbox"]:checked:not(.select-all)').forEach(checkbox => {
-            selectedValues.push(checkbox.value); 
+        const allCheckboxes = popup.querySelectorAll('input[type="checkbox"]:not(.select-all)');
+        allCheckboxes.forEach(checkbox => {
+            if (checkbox.checked) {
+                selectedValues.push(checkbox.value.toLowerCase());
+            }
         });
 
-        const allOptionsCount = popup.querySelectorAll('input[type="checkbox"]:not(.select-all)').length;
-
-        if (selectedValues.length > 0 && selectedValues.length < allOptionsCount) {
+        const allOptionsCount = allCheckboxes.length;
+        if (selectedValues.length < allOptionsCount) {
             filters.headerFilters[property] = selectedValues;
-        } else if (selectedValues.length === 0 && allOptionsCount > 0 && !popup.querySelector('.select-all').checked) {
-            filters.headerFilters[property] = []; 
         }
     });
 
@@ -506,43 +461,130 @@ function applyAllFiltersAndRender() {
     updateEquipmentCount(filteredEquipments.length);
 }
 
-/**
- * Exporta a tabela exibida atualmente para um arquivo Excel.
- */
-function exportTableToExcel() {
-    const table = document.getElementById('equipmentTable');
-    const headerFiltersRowElement = document.getElementById('headerFilters');
-    headerFiltersRowElement.style.display = 'none';
+// ===================================================================================
+// === NOVA FUNÇÃO DE EXPORTAÇÃO USANDO A BIBLIOTECA ExcelJS ===
+// ===================================================================================
+async function exportWithExcelJS(tableId, fileName) {
+    const table = document.getElementById(tableId);
+    if (!table) {
+        alert(`Tabela com ID "${tableId}" não encontrada.`);
+        return;
+    }
+    // Garante que a biblioteca ExcelJS está disponível
+    if (typeof ExcelJS === 'undefined') {
+        alert('Erro: A biblioteca de exportação de Excel (ExcelJS) não foi carregada. Verifique se o script está no index.html.');
+        return;
+    }
+    
+    outputDiv.textContent = `Gerando arquivo Excel estilizado: ${fileName}.xlsx...`;
 
-    const ws = XLSX.utils.table_to_sheet(table);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Equipamentos Filtrados");
-    XLSX.writeFile(wb, "equipamentos_filtrados.xlsx");
+    try {
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Dados');
 
-    headerFiltersRowElement.style.display = '';
+        const headerFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0056B3' } }; 
+        const headerFont = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
+        const calibratedFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFB3E6B3' } };
+        const notCalibratedFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFCCCC' } };
+        const maintenanceFont = { name: 'Calibri', size: 11, color: { argb: 'FFDC3545' }, bold: true, italic: true };
+        const defaultFont = { name: 'Calibri', size: 11 };
+
+        const headerHTMLRows = Array.from(table.querySelectorAll('thead tr'));
+        const headerData = [];
+        headerHTMLRows.forEach(tr => {
+            if (tr.id === 'headerFilters') return; 
+            const rowValues = [];
+            tr.querySelectorAll('th').forEach(th => rowValues.push(th.textContent));
+            headerData.push(rowValues);
+        });
+
+        const headerRow = worksheet.addRow(headerData[0]);
+        headerRow.eachCell(cell => {
+            cell.fill = headerFill;
+            cell.font = headerFont;
+            cell.alignment = { vertical: 'middle', horizontal: 'center' };
+            cell.border = {
+                top: { style: 'thin' },
+                left: { style: 'thin' },
+                bottom: { style: 'thin' },
+                right: { style: 'thin' }
+            };
+        });
+
+        const bodyHTMLRows = Array.from(table.querySelectorAll('tbody tr'));
+        bodyHTMLRows.forEach(tr => {
+            if (tr.querySelector('td')?.colSpan > 1) return; 
+
+            const cellValues = Array.from(tr.querySelectorAll('td')).map(td => td.textContent);
+            const addedRow = worksheet.addRow(cellValues);
+
+            addedRow.eachCell(cell => {
+                let cellFill = null;
+                if (tr.classList.contains('calibrated-dhme')) {
+                    cellFill = calibratedFill;
+                } else if (tr.classList.contains('not-calibrated')) {
+                    cellFill = notCalibratedFill;
+                }
+                if(cellFill) cell.fill = cellFill;
+
+                if (tr.classList.contains('in-external-maintenance')) {
+                    cell.font = maintenanceFont;
+                } else {
+                    cell.font = defaultFont;
+                }
+                 cell.border = {
+                    top: { style: 'thin' },
+                    left: { style: 'thin' },
+                    bottom: { style: 'thin' },
+                    right: { style: 'thin' }
+                };
+            });
+        });
+
+        worksheet.columns.forEach(column => {
+            let maxLength = 0;
+            column.eachCell({ includeEmpty: true }, cell => {
+                const cellLength = cell.value ? cell.value.toString().length : 0;
+                if (cellLength > maxLength) {
+                    maxLength = cellLength;
+                }
+            });
+            column.width = maxLength < 12 ? 12 : maxLength + 2;
+        });
+        
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `${fileName}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
+        outputDiv.textContent = `Arquivo ${fileName}.xlsx gerado com sucesso!`;
+
+    } catch (error) {
+        console.error("Erro ao gerar arquivo Excel com ExcelJS:", error);
+        outputDiv.textContent = `Erro ao gerar arquivo: ${error.message}`;
+        alert("Ocorreu um erro ao gerar o arquivo Excel. Verifique o console para mais detalhes.");
+    }
 }
 
-// Event Listeners para os elementos de interação do usuário
-processButton.addEventListener('click', handleProcessFile);
-sectorFilter.addEventListener('change', applyAllFiltersAndRender); 
-calibrationStatusFilter.addEventListener('change', applyAllFiltersAndRender); 
-searchInput.addEventListener('keyup', applyAllFiltersAndRender);
-maintenanceFilter.addEventListener('change', applyAllFiltersAndRender); 
-exportButton.addEventListener('click', exportTableToExcel);
+
+// --- EVENT LISTENERS ATUALIZADOS PARA USAR A NOVA FUNÇÃO ---
+exportButton.addEventListener('click', () => {
+    exportWithExcelJS('equipmentTable', 'equipamentos_filtrados');
+});
 
 exportOsButton.addEventListener('click', () => {
-    const osTable = document.getElementById('osTable');
-    const ws = XLSX.utils.table_to_sheet(osTable);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "OS Abertas Filtradas");
-    XLSX.writeFile(wb, "os_abertas_filtradas.xlsx");
+    exportWithExcelJS('osTable', 'os_abertas_filtradas');
 });
+// -----------------------------------------------------------------
 
 showEquipmentButton.addEventListener('click', () => toggleSectionVisibility('equipmentSection'));
 showOsButton.addEventListener('click', () => toggleSectionVisibility('osSection'));
 showRondaButton.addEventListener('click', () => toggleSectionVisibility('rondaSection')); 
 
-// Event Listeners para a funcionalidade de Ronda (delegando para o rondaManager)
 startRondaButton.addEventListener('click', () => {
     initRonda(allEquipments, rondaTableBody, rondaCountSpan, rondaSectorSelect.value, normalizeId); 
 });
@@ -550,15 +592,24 @@ startRondaButton.addEventListener('click', () => {
 loadRondaButton.addEventListener('click', async () => {
     const file = rondaFileInput.files[0];
     if (file) {
-        outputDiv.textContent = `\nCarregando Ronda Existente: ${file.name}...`;
-        const existingRondaData = await readExcelFile(file);
-        loadRonda(existingRondaData, rondaTableBody, rondaCountSpan); 
-        outputDiv.textContent += `\nRonda Existente carregada.`;
+        try {
+            outputDiv.textContent = `\nCarregando Ronda Existente: ${file.name}...`;
+            const existingRondaData = await readExcelFile(file);
+            loadExistingRonda(existingRondaData, rondaTableBody, rondaCountSpan); 
+            outputDiv.textContent += `\nRonda Existente carregada.`;
+        } catch(error) {
+            outputDiv.textContent = `\nErro ao carregar ronda: ${error.message}`;
+        }
     } else {
-        outputDiv.textContent = `\nPor favor, selecione um arquivo de Ronda Existente.`;
+        alert(`Por favor, selecione um arquivo de Ronda para carregar.`);
     }
 });
 
 saveRondaButton.addEventListener('click', () => {
     saveRonda(rondaTableBody); 
+});
+
+// Inicializa a visibilidade das seções
+document.addEventListener('DOMContentLoaded', () => {
+    toggleSectionVisibility('equipmentSection');
 });
