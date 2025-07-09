@@ -74,7 +74,7 @@ export function renderOsTable(
         const row = tableBodyElement.insertRow();
         osCount++; 
 
-        if (osStatusCalib.startsWith('Calibrado (')) { 
+        if (osStatusCalib.includes('Calibrado (')) { 
             row.classList.add('calibrated-dhme'); 
         } else if (osStatusCalib.includes('Não Calibrado')) { 
             row.classList.add('not-calibrated');
@@ -91,8 +91,8 @@ export function renderOsTable(
         row.insertCell().textContent = os.Equipamento ?? '';
         row.insertCell().textContent = os.Modelo ?? '';
         row.insertCell().textContent = os.Fabricante ?? '';
-        // CORREÇÃO: Pega o setor do 'correspondingEquipment' que foi encontrado.
-        row.insertCell().textContent = correspondingEquipment?.Setor ?? 'Não Cadastrado';
+        // row.insertCell().textContent = osStatusCalib; 
+        // row.insertCell().textContent = osStatusManutencao; 
     });
 
     document.getElementById('osCount').textContent = `Total: ${osCount} OS`;

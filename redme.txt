@@ -1,0 +1,66 @@
+# 📊 Leitor e Analisador de Dados Excel de Equipamentos
+
+Este projeto é uma aplicação web interativa desenvolvida em HTML, CSS e JavaScript puro para auxiliar no gerenciamento e cruzamento de dados de equipamentos. Ele permite carregar múltiplas planilhas Excel (cadastro de equipamentos, calibrações de diferentes fornecedores, e manutenção externa, além de ordens de serviço) e visualizar informações cruciais de forma centralizada e filtrável.
+
+## ✨ Funcionalidades
+
+* **Carregamento de Múltiplos Arquivos Excel**: Suporta o carregamento simultâneo de:
+    * `equipamentos.xlsx`: Cadastro principal de equipamentos.
+    * `dhmed.xlsx`: Lista de equipamentos calibrados pela DHMED.
+    * `sciencetech.xlsx` (ou `ordensservico.xlsx`): Lista de equipamentos calibrados pela Sciencetech.
+    * `manu_externa.xlsx`: Lista de equipamentos em manutenção externa.
+    * `os_cali_abertas.xlsx`: Ordens de Serviço (OS) em aberto.
+* **Cruzamento Automático de Dados**:
+    * Identifica equipamentos calibrados pela **DHMED** (linha verde na tabela principal).
+    * Identifica equipamentos calibrados pela **Sciencetech** (linha azul na tabela principal).
+    * Identifica equipamentos **em Manutenção Externa** (texto em itálico e vermelho na tabela principal).
+* **Filtros de Tabela Poderosos**:
+    * **Filtros Globais**: Por setor, status de calibração, busca por SN/Patrimônio/TAG, e status de manutenção.
+    * **Filtros de Cabeçalho Avançados**:
+        * **Seleção Múltipla (Pop-up com Checkboxes)**: Para colunas como Equipamento, Modelo, Fabricante, Setor, e Status Calibração, permitindo selecionar múltiplos valores e buscar dentro do pop-up.
+        * **Filtro de Texto**: Para TAG, Nº Série, Patrimônio, Data Vencimento Calibração e Status Manutenção.
+* **Identificação de Divergências de SN**: Filtros específicos para identificar:
+    * Equipamentos do seu cadastro que **não** foram encontrados nas listas de calibração (DHMED/Sciencetech) – `Não Calibrado/Não Encontrado (Seu Cadastro)`.
+    * Números de Série que **estão nas listas de calibração (DHMED/Sciencetech) mas NÃO** foram encontrados no seu cadastro principal (`Divergência (DHMED)` e `Divergência (Sciencetech)`) – crucial para corrigir erros de digitação dos fornecedores.
+* **Visualização de Ordens de Serviço (OS)**:
+    * Uma seção dedicada exibe OS em aberto.
+    * Cruza os dados das OS com o status de calibração e manutenção dos equipamentos correspondentes no cadastro principal.
+    * Botão para **mostrar/ocultar** a tabela de OS.
+* **Exportação para Excel**: Exporte a tabela principal (filtrada ou não) e a tabela de OS (filtrada ou não) para um novo arquivo Excel.
+* **Interface Otimizada**: Tabela responsiva com rolagem horizontal e cabeçalhos fixos para melhor visualização de grandes volumes de dados.
+
+## 🚀 Como Usar
+
+1.  **Clone o Repositório:**
+    ```bash
+    git clone [https://github.com/seu-usuario/seu-projeto-web.git](https://github.com/seu-usuario/seu-projeto-web.git)
+    cd seu-projeto-web
+    ```
+2.  **Abra o `index.html`:** Simplesmente abra o arquivo `public/index.html` em seu navegador web preferido. Não é necessário um servidor web complexo para as funcionalidades básicas, embora seja recomendado para produção.
+
+3.  **Prepare seus Arquivos Excel:**
+    Certifique-se de que seus arquivos Excel estão nomeados de forma reconhecível e com as colunas corretas:
+
+    * `equipamentos.xlsx`: **(Obrigatório)** Deve conter `equipamentos` no nome do arquivo.
+        * Colunas esperadas: `TAG`, `Equipamento`, `Modelo`, `Fabricante`, `Setor`, `Nº Série`, `Patrimônio`, `Status Calibração`, `Data Vencimento Calibração`, `Status Manutenção`.
+    * `dhmed.xlsx`: Deve conter `dhmed` no nome do arquivo.
+        * Coluna de Nº de Série: `SN`
+    * `sciencetech.xlsx` (ou `ordensservico.xlsx`): Deve conter `sciencetech` ou `ordensservico` no nome do arquivo.
+        * Coluna de Nº de Série: `NÚMERO DE SÉRIE`
+    * `manu_externa.xlsx`: Deve conter `manu_externa` no nome do arquivo.
+        * Coluna de Nº de Série: `Nº de Série`
+    * `os_cali_abertas.xlsx`: Deve conter `os_cali_abertas` no nome do arquivo.
+        * Colunas esperadas: `OS` (C), `Patrimônio` (P), `Nº de Série` (Q), `Equipamento` (R), `Modelo` (S), `Fabricante` (T).
+
+4.  **Carregue os Arquivos:**
+    * Na aplicação, clique em "Selecione os arquivos Excel" e escolha **todos os arquivos pertinentes** de uma vez.
+    * Clique em "Processar Arquivos".
+    * As tabelas serão populadas e os filtros estarão ativos.
+
+5.  **Utilize os Filtros:**
+    * **Filtros Globais**: Use os dropdowns e o campo de busca acima da tabela principal.
+    * **Filtros de Cabeçalho**: Clique nos botões nos cabeçalhos das colunas (Equipamento, Modelo, etc.) para abrir o pop-up de seleção múltipla. Digite nos campos de texto para filtrar TAG, Nº Série, etc.
+    * **Visualizar OS**: Clique no botão "Mostrar OS" (ou "Ocultar OS") para alternar a visibilidade da tabela de Ordens de Serviço.
+
+## 📁 Estrutura do Projeto (Modelo Profissional)
+
