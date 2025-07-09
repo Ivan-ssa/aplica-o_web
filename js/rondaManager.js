@@ -20,7 +20,7 @@ export function initRonda(allEquipments, rondaTableBody, rondaCountSpan, selecte
         equipmentsForRonda = []; 
     }
 
-    // Mapeia para os dados da ronda, garantindo que SN/Patrimônio são normalizados
+    // Mapeia para os dados da ronda
     window.rondaData = equipmentsForRonda.map(eq => ({
         TAG: eq.TAG ?? '',
         Equipamento: eq.Equipamento ?? '',
@@ -56,22 +56,31 @@ function renderRondaTable(data, rondaTableBody, rondaCountSpan) {
 
     data.forEach((item, index) => {
         const row = rondaTableBody.insertRow();
-        row.dataset.rowIndex = index; // Armazena o índice para fácil referência ao salvar
+        row.dataset.rowIndex = index;
 
-        row.insertCell().textContent = item.TAG;
-        row.insertCell().textContent = item.Equipamento;
-        row.insertCell().textContent = item.Setor;
+        // Adiciona as células com `data-label` para a interface móvel
+        let cell;
+        
+        cell = row.insertCell();
+        cell.textContent = item.TAG;
+        cell.dataset.label = 'TAG';
+
+        cell = row.insertCell();
+        cell.textContent = item.Equipamento;
+        cell.dataset.label = 'Equipamento';
+
+        cell = row.insertCell();
+        cell.textContent = item.Setor;
+        cell.dataset.label = 'Setor';
 
         const dispCell = row.insertCell();
+        dispCell.dataset.label = 'Disponibilidade';
         const dispSelect = document.createElement('select');
-        dispSelect.dataset.property = 'Disponibilidade';
         const dispOptions = ['Disponível', 'Em Uso', 'Em Manutenção', 'Desativado', 'Perdido', 'Outro'];
-
         const defaultDispOption = document.createElement('option');
         defaultDispOption.value = '';
         defaultDispOption.textContent = 'Selecione...';
         dispSelect.appendChild(defaultDispOption);
-
         dispOptions.forEach(opt => {
             const option = document.createElement('option');
             option.value = opt;
@@ -83,18 +92,20 @@ function renderRondaTable(data, rondaTableBody, rondaCountSpan) {
         dispCell.appendChild(dispSelect);
 
         const locCell = row.insertCell();
+        locCell.dataset.label = 'Localização (Sala/Quarto)';
         const locInput = document.createElement('input');
         locInput.type = 'text';
         locInput.value = item.Localizacao || '';
-        locInput.dataset.property = 'Localizacao';
+        locInput.placeholder = 'Digite a localização...';
         locInput.addEventListener('change', (e) => updateRondaItem(row.dataset.rowIndex, 'Localizacao', e.target.value));
         locCell.appendChild(locInput);
 
         const obsCell = row.insertCell();
+        obsCell.dataset.label = 'Observações da Ronda';
         const obsInput = document.createElement('input');
         obsInput.type = 'text';
         obsInput.value = item.Observacoes || '';
-        obsInput.dataset.property = 'Observacoes';
+        obsInput.placeholder = 'Digite as observações...';
         obsInput.addEventListener('change', (e) => updateRondaItem(row.dataset.rowIndex, 'Observacoes', e.target.value));
         obsCell.appendChild(obsInput);
     });
@@ -104,9 +115,6 @@ function renderRondaTable(data, rondaTableBody, rondaCountSpan) {
 
 /**
  * Atualiza um item de ronda na memória quando um input/select é alterado.
- * @param {number} index - O índice do item na window.rondaData.
- * @param {string} property - A propriedade a ser atualizada ('Disponibilidade', 'Localizacao', 'Observacoes').
- * @param {*} value - O novo valor.
  */
 function updateRondaItem(index, property, value) {
     if (window.rondaData[index]) {
@@ -116,8 +124,6 @@ function updateRondaItem(index, property, value) {
 
 /**
  * Popula o select de setores na seção de Ronda.
- * @param {Array<Object>} allEquipments - Todos os equipamentos para obter os setores.
- * @param {HTMLElement} selectElement - O elemento <select> a ser populado.
  */
 export function populateRondaSectorSelect(allEquipments, selectElement) {
     selectElement.innerHTML = '<option value="">Selecione um Setor</option>';
@@ -137,9 +143,6 @@ export function populateRondaSectorSelect(allEquipments, selectElement) {
 
 /**
  * Carrega dados de uma ronda existente de um arquivo Excel e renderiza na tabela.
- * @param {Array<Object>} existingRondaData - Dados lidos do arquivo de ronda.
- * @param {HTMLElement} rondaTableBody - O tbody da tabela de ronda.
- * @param {HTMLElement} rondaCountSpan - O span para exibir a contagem.
  */
 export function loadExistingRonda(existingRondaData, rondaTableBody, rondaCountSpan) {
     window.rondaData = existingRondaData; 
@@ -147,10 +150,9 @@ export function loadExistingRonda(existingRondaData, rondaTableBody, rondaCountS
 }
 
 /**
- * Salva os dados da ronda (incluindo inputs do usuário) para um arquivo Excel.
- * @param {HTMLElement} rondaTableBody - O tbody da tabela de ronda para coletar os dados visuais.
+ * Salva os dados da ronda para um arquivo Excel.
  */
-export function saveRonda(rondaTableBody) {
+export function saveRonda() {
     if (window.rondaData.length === 0) {
         alert("Não há dados na tabela de ronda para salvar.");
         return;

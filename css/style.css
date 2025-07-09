@@ -296,3 +296,59 @@ button {
     font-size: 0.85em;
     box-sizing: border-box;
 }
+/* ############################################################### */
+/* ESTILOS PARA A INTERFACE RESPONSIVA DA RONDA (MÓVEL) */
+/* ############################################################### */
+
+/* Estas regras só aplicam em ecrãs com largura máxima de 768px (telemóveis e tablets pequenos) */
+@media screen and (max-width: 768px) {
+    /* Esconde o cabeçalho da tabela de ronda, não faz sentido no layout de cartões */
+    #rondaTable thead {
+        display: none;
+    }
+
+    /* Transforma a linha (tr) num contentor de cartão */
+    #rondaTable tbody tr {
+        display: block;
+        margin-bottom: 1rem;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 1rem;
+        background-color: #fff;
+    }
+
+    /* Transforma a célula (td) num item de lista que ocupa toda a largura */
+    #rondaTable tbody td {
+        display: block;
+        text-align: right; /* Alinha o conteúdo da célula (o input/select) à direita */
+        padding: 0.5rem 0;
+        border: none; /* Remove a borda da célula individual */
+        border-bottom: 1px solid #eee; /* Adiciona um separador entre os campos do cartão */
+        position: relative; /* Necessário para o posicionamento do ::before */
+        white-space: normal; /* Garante que o texto quebra a linha corretamente */
+    }
+
+    /* Última célula de cada cartão não precisa de separador */
+    #rondaTable tbody td:last-child {
+        border-bottom: none;
+    }
+
+    /* Adiciona a etiqueta (título da coluna) antes de cada célula, usando o `data-label` */
+    #rondaTable tbody td::before {
+        content: attr(data-label); /* Pega o texto do atributo 'data-label' */
+        position: absolute;
+        left: 0;
+        width: 45%; /* Largura da etiqueta */
+        padding-right: 10px;
+        white-space: nowrap;
+        text-align: left;
+        font-weight: bold;
+    }
+
+    /* Ajusta os inputs e selects dentro dos cartões */
+    #rondaTable input[type="text"],
+    #rondaTable select {
+        width: 50%; /* Faz com que ocupem a metade direita do cartão */
+        float: right; /* Flutua para a direita para alinhar com o text-align da célula */
+    }
+}
