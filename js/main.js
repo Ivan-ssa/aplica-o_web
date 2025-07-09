@@ -63,10 +63,6 @@ const rondaTableBody = document.querySelector('#rondaTable tbody');
 const rondaCountSpan = document.getElementById('rondaCount');
 
 
-/**
- * Alterna a visibilidade das seções entre Equipamentos, OS e Ronda.
- * @param {string} sectionToShowId - O ID da seção a ser mostrada ('equipmentSection', 'osSection', 'rondaSection').
- */
 function toggleSectionVisibility(sectionToShowId) {
     if (equipmentSection) equipmentSection.classList.add('hidden');
     if (osSection) osSection.classList.add('hidden');
@@ -89,13 +85,8 @@ function toggleSectionVisibility(sectionToShowId) {
 }
 
 
-/**
- * Popula o dropdown de Status de Calibração (global) dinamicamente.
- * @param {Array<Object>} rawCalibrationsData - Dados brutos da consolidação para extrair fornecedores.
- */
 function populateCalibrationStatusFilter(rawCalibrationsData) {
     const filterElement = calibrationStatusFilter; 
-
     filterElement.innerHTML = '<option value="">Todos os Status</option>';
     
     const fixedOptions = [
@@ -129,9 +120,6 @@ function populateCalibrationStatusFilter(rawCalibrationsData) {
 }
 
 
-/**
- * Lida com o processamento dos arquivos Excel selecionados pelo usuário.
- */
 async function handleProcessFile() {
     outputDiv.textContent = 'Processando arquivos...';
     const files = excelFileInput.files;
@@ -165,6 +153,7 @@ async function handleProcessFile() {
     }
 
     try {
+        // ... (resto da função handleProcessFile permanece igual) ...
         outputDiv.textContent += `\nLendo arquivo de equipamentos: ${equipmentFile.name}...`;
         allEquipments = await readExcelFile(equipmentFile);
 
@@ -281,10 +270,9 @@ async function handleProcessFile() {
     }
 }
 
-/**
- * Configura os filtros personalizados nos cabeçalhos da tabela principal.
- */
+
 function setupHeaderFilters(equipments) {
+    // ... (esta função permanece exatamente igual) ...
     headerFiltersRow.innerHTML = ''; 
 
     const headerFilterMap = {
@@ -433,10 +421,9 @@ function setupHeaderFilters(equipments) {
     });
 }
 
-/**
- * Aplica os filtros atuais (globais e de cabeçalho) e renderiza a tabela.
- */
+
 function applyAllFiltersAndRender() {
+    // ... (esta função permanece exatamente igual) ...
     const filters = {
         sector: sectorFilter.value, 
         calibrationStatus: calibrationStatusFilter.value,
@@ -473,110 +460,118 @@ function applyAllFiltersAndRender() {
 }
 
 // ===================================================================================
-// === NOVA FUNÇÃO DE EXPORTAÇÃO GENÉRICA E CORRIGIDA ===
+// === NOVA FUNÇÃO DE EXPORTAÇÃO USANDO A BIBLIOTECA ExcelJS ===
 // ===================================================================================
 /**
- * Função genérica para exportar uma tabela HTML para Excel com estilos baseados em classes CSS.
- * @param {string} tableId - O ID da tabela a ser exportada.
- * @param {string} fileName - O nome do arquivo Excel a ser gerado.
+ * Exporta uma tabela HTML para um arquivo Excel estilizado usando ExcelJS.
+ * @param {string} tableId - O ID da tabela HTML a ser exportada.
+ * @param {string} fileName - O nome do arquivo a ser gerado.
  */
-function exportStyledTableToExcel(tableId, fileName) {
+async function exportWithExcelJS(tableId, fileName) {
     const table = document.getElementById(tableId);
     if (!table) {
         alert(`Tabela com ID "${tableId}" não encontrada.`);
         return;
     }
-    const data = [];
-
-    // --- 1. Definir os Estilos ---
-    const headerStyle = {
-        font: { bold: true, color: { rgb: "FFFFFFFF" } },
-        fill: { fgColor: { rgb: "FF0056B3" } }, // Azul escuro
-        alignment: { vertical: "center", horizontal: "center" }
-    };
-    const calibratedFill = { fill: { fgColor: { rgb: "FFB3E6B3" } } }; // Fundo Verde
-    const notCalibratedFill = { fill: { fgColor: { rgb: "FFFFCCCC" } } }; // Fundo Vermelho
-    const maintenanceFont = { font: { color: { rgb: "FFDC3545" }, bold: true, italic: true } };
-
-    // --- 2. Processar Cabeçalho ---
-    table.querySelectorAll('thead tr').forEach(tr => {
-        if (tr.id === 'headerFilters') return; // Ignorar linha de filtros
-
-        const headerRowData = [];
-        tr.querySelectorAll('th').forEach(th => {
-            headerRowData.push({ v: th.textContent, s: headerStyle });
-        });
-        data.push(headerRowData);
-    });
-
-    // --- 3. Processar Corpo da Tabela ---
-    table.querySelectorAll('tbody tr').forEach(tr => {
-        if (tr.querySelector('td')?.colSpan > 1) return; // Pular linha de "nenhum dado"
-
-        // **LÓGICA CORRIGIDA: Determina o estilo da LINHA INTEIRA primeiro**
-        let rowStyle = {};
-        
-        // Aplica a cor de fundo
-        if (tr.classList.contains('calibrated-dhme')) {
-            rowStyle.fill = calibratedFill.fill;
-        } else if (tr.classList.contains('not-calibrated')) {
-            rowStyle.fill = notCalibratedFill.fill;
-        }
-
-        // Aplica (ou mescla) o estilo da fonte
-        if (tr.classList.contains('in-external-maintenance')) {
-            rowStyle.font = maintenanceFont.font;
-        }
-        
-        const rowData = [];
-        tr.querySelectorAll('td').forEach(td => {
-            // Aplica o mesmo estilo pré-calculado para todas as células da linha
-            rowData.push({ v: td.textContent, s: rowStyle });
-        });
-        data.push(rowData);
-    });
-
-    if (data.length <= 1) { // Apenas cabeçalho
-        alert("Não há dados na tabela para exportar.");
-        return;
-    }
-
-    // --- 4. Criar e Salvar Planilha ---
-    const ws = XLSX.utils.aoa_to_sheet(data);
     
-    // Auto-ajuste de colunas (estimativa)
-    const colWidths = data[0].map((_, i) => ({
-        wch: data.reduce((w, r) => Math.max(w, r[i]?.v?.toString().length || 10), 10) + 2 // Adiciona um pouco de padding
-    }));
-    ws['!cols'] = colWidths;
+    // Mostra um feedback para o usuário
+    outputDiv.textContent = `Gerando arquivo Excel estilizado: ${fileName}.xlsx...`;
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Dados Filtrados");
-    XLSX.writeFile(wb, `${fileName}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    try {
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Dados');
+
+        // --- Estilos ---
+        const headerFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0056B3' } }; // Azul
+        const headerFont = { name: 'Arial', bold: true, color: { argb: 'FFFFFFFF' } }; // Branco
+        const calibratedFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFB3E6B3' } }; // Verde
+        const notCalibratedFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFCCCC' } }; // Vermelho
+        const maintenanceFont = { name: 'Arial', color: { argb: 'FFDC3545' }, bold: true, italic: true };
+
+        // --- Cabeçalho ---
+        const headerHTMLRows = Array.from(table.querySelectorAll('thead tr'));
+        const headerData = [];
+        headerHTMLRows.forEach(tr => {
+            if (tr.id === 'headerFilters') return; // Pula a linha de filtros
+            const rowValues = [];
+            tr.querySelectorAll('th').forEach(th => rowValues.push(th.textContent));
+            headerData.push(rowValues);
+        });
+
+        const headerRow = worksheet.addRow(headerData[0]);
+        headerRow.eachCell(cell => {
+            cell.fill = headerFill;
+            cell.font = headerFont;
+            cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        });
+
+        // --- Corpo ---
+        const bodyHTMLRows = Array.from(table.querySelectorAll('tbody tr'));
+        bodyHTMLRows.forEach(tr => {
+            if (tr.querySelector('td')?.colSpan > 1) return; // Pula linha de "nenhum dado"
+
+            const cellValues = Array.from(tr.querySelectorAll('td')).map(td => td.textContent);
+            const addedRow = worksheet.addRow(cellValues);
+
+            // Aplica estilos à linha que acabamos de adicionar
+            addedRow.eachCell(cell => {
+                if (tr.classList.contains('calibrated-dhme')) {
+                    cell.fill = calibratedFill;
+                } else if (tr.classList.contains('not-calibrated')) {
+                    cell.fill = notCalibratedFill;
+                }
+
+                if (tr.classList.contains('in-external-maintenance')) {
+                    cell.font = maintenanceFont;
+                }
+            });
+        });
+
+        // --- Ajustar Largura das Colunas ---
+        worksheet.columns.forEach(column => {
+            let maxLength = 0;
+            column.eachCell({ includeEmpty: true }, cell => {
+                let columnLength = cell.value ? cell.value.toString().length : 10;
+                if (columnLength > maxLength) {
+                    maxLength = columnLength;
+                }
+            });
+            column.width = maxLength < 10 ? 10 : maxLength + 2;
+        });
+        
+        // --- Gerar e Baixar o Arquivo ---
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `${fileName}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+        link.click();
+        URL.revokeObjectURL(link.href);
+        outputDiv.textContent = `Arquivo ${fileName}.xlsx gerado com sucesso!`;
+
+    } catch (error) {
+        console.error("Erro ao gerar arquivo Excel com ExcelJS:", error);
+        outputDiv.textContent = `Erro ao gerar arquivo: ${error.message}`;
+        alert("Ocorreu um erro ao gerar o arquivo Excel. Verifique o console para mais detalhes.");
+    }
 }
 
-// --- Event Listeners para os elementos de interação do usuário ---
-processButton.addEventListener('click', handleProcessFile);
-sectorFilter.addEventListener('change', applyAllFiltersAndRender); 
-calibrationStatusFilter.addEventListener('change', applyAllFiltersAndRender); 
-searchInput.addEventListener('keyup', applyAllFiltersAndRender);
-maintenanceFilter.addEventListener('change', applyAllFiltersAndRender); 
 
-// --- NOVOS EVENTOS DE EXPORTAÇÃO USANDO A FUNÇÃO GENÉRICA CORRIGIDA ---
+// --- EVENT LISTENERS ATUALIZADOS PARA USAR A NOVA FUNÇÃO ---
 exportButton.addEventListener('click', () => {
-    exportStyledTableToExcel('equipmentTable', 'equipamentos_filtrados');
+    exportWithExcelJS('equipmentTable', 'equipamentos_filtrados');
 });
 
 exportOsButton.addEventListener('click', () => {
-    exportStyledTableToExcel('osTable', 'os_abertas_filtradas');
+    exportWithExcelJS('osTable', 'os_abertas_filtradas');
 });
-// -------------------------------------------------------------
+// -----------------------------------------------------------------
 
+// O resto do arquivo (event listeners de navegação e ronda) permanece igual
 showEquipmentButton.addEventListener('click', () => toggleSectionVisibility('equipmentSection'));
 showOsButton.addEventListener('click', () => toggleSectionVisibility('osSection'));
 showRondaButton.addEventListener('click', () => toggleSectionVisibility('rondaSection')); 
 
-// Event Listeners para a funcionalidade de Ronda
 startRondaButton.addEventListener('click', () => {
     initRonda(allEquipments, rondaTableBody, rondaCountSpan, rondaSectorSelect.value, normalizeId); 
 });
