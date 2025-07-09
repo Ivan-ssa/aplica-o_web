@@ -122,6 +122,12 @@ function populateCalibrationStatusFilter(rawCalibrationsData) {
 
 async function handleProcessFile() {
     outputDiv.textContent = 'Processando arquivos...';
+    // Garante que o objeto XLSX da biblioteca correta está disponível
+    if (typeof XLSX === 'undefined') {
+        outputDiv.textContent = 'Erro: A biblioteca de leitura de Excel (xlsx.js) não foi carregada.';
+        return;
+    }
+
     const files = excelFileInput.files;
 
     if (files.length === 0) {
@@ -153,7 +159,6 @@ async function handleProcessFile() {
     }
 
     try {
-        // ... (resto da função handleProcessFile permanece igual) ...
         outputDiv.textContent += `\nLendo arquivo de equipamentos: ${equipmentFile.name}...`;
         allEquipments = await readExcelFile(equipmentFile);
 
@@ -177,7 +182,6 @@ async function handleProcessFile() {
             if (patrimonio) mainEquipmentsByPatrimonio.set(patrimonio, eq);
         });
 
-        // Processa o arquivo de calibrações consolidadas
         window.consolidatedCalibratedMap.clear(); 
         window.consolidatedCalibrationsRawData = []; 
 
@@ -193,7 +197,7 @@ async function handleProcessFile() {
                     const dataCalibracao = item.DataCalibracaoConsolidada || item['Data de Calibração'] || ''; 
 
                     if (sn && fornecedor) {
-                        window.consolidatedCalibratedMap.set(sn, { fornecedor: fornecedor, dataCalibricao: dataCalibricao });
+                        window.consolidatedCalibratedMap.set(sn, { fornecedor: fornecedor, dataCalibricao: dataCalibracao });
                     }
                 });
                 outputDiv.textContent += `\n${window.consolidatedCalibratedMap.size} SNs de calibração consolidados encontrados.`;
@@ -204,7 +208,6 @@ async function handleProcessFile() {
             outputDiv.textContent += `\nArquivo de Calibrações Consolidadas não selecionado.`;
         }
 
-        // Processa o arquivo de Manutenção Externa
         window.externalMaintenanceSNs.clear(); 
         if (externalMaintenanceFile) {
             outputDiv.textContent += `\nLendo arquivo Manutenção Externa: ${externalMaintenanceFile.name}...`;
@@ -224,7 +227,6 @@ async function handleProcessFile() {
             outputDiv.textContent += `\nArquivo Manutenção Externa não selecionado.`;
         }
 
-        // Processa o arquivo de Ordens de Serviço (OS)
         window.osRawData = []; 
         if (osCaliAbertasFile) {
             outputDiv.textContent += `\nLendo arquivo de OS Abertas: ${osCaliAbertasFile.name}...`;
@@ -244,7 +246,7 @@ async function handleProcessFile() {
             outputDiv.textContent += `\nArquivo de OS Abertas não selecionado.`;
         }
 
-        outputDiv.textContent += '\nProcessamento concluído. Renderizando tabelas...';
+        outputDiv.textContent = 'Processamento concluído. Renderizando tabelas...';
         applyAllFiltersAndRender(); 
         populateSectorFilter(allEquipments, sectorFilter); 
         populateCalibrationStatusFilter(window.consolidatedCalibrationsRawData); 
@@ -272,7 +274,6 @@ async function handleProcessFile() {
 
 
 function setupHeaderFilters(equipments) {
-    // ... (esta função permanece exatamente igual) ...
     headerFiltersRow.innerHTML = ''; 
 
     const headerFilterMap = {
@@ -423,7 +424,6 @@ function setupHeaderFilters(equipments) {
 
 
 function applyAllFiltersAndRender() {
-    // ... (esta função permanece exatamente igual) ...
     const filters = {
         sector: sectorFilter.value, 
         calibrationStatus: calibrationStatusFilter.value,
@@ -460,93 +460,108 @@ function applyAllFiltersAndRender() {
 }
 
 // ===================================================================================
-// === FUNÇÃO DE EXPORTAÇÃO REVERTIDA PARA USAR A BIBLIOTECA xlsx.js ===
+// === NOVA FUNÇÃO DE EXPORTAÇÃO USANDO A BIBLIOTECA ExcelJS ===
 // ===================================================================================
-/**
- * Função genérica para exportar uma tabela HTML para Excel com estilos usando a biblioteca xlsx.js
- * @param {string} tableId - O ID da tabela a ser exportada.
- * @param {string} fileName - O nome do arquivo Excel a ser gerado.
- */
-function exportStyledTableToExcel(tableId, fileName) {
+async function exportWithExcelJS(tableId, fileName) {
     const table = document.getElementById(tableId);
     if (!table) {
         alert(`Tabela com ID "${tableId}" não encontrada.`);
         return;
     }
-    const data = [];
-
-    // --- 1. Definir os Estilos ---
-    const headerStyle = {
-        font: { bold: true, color: { rgb: "FFFFFFFF" } },
-        fill: { fgColor: { rgb: "FF0056B3" } },
-        alignment: { vertical: "center", horizontal: "center" }
-    };
-    const calibratedFill = { fill: { fgColor: { rgb: "FFB3E6B3" } } }; // Verde
-    const notCalibratedFill = { fill: { fgColor: { rgb: "FFFFCCCC" } } }; // Vermelho
-    const maintenanceFont = { font: { color: { rgb: "FFDC3545" }, bold: true, italic: true } };
-
-    // --- 2. Processar Cabeçalho ---
-    table.querySelectorAll('thead tr').forEach(tr => {
-        if (tr.id === 'headerFilters') return; 
-
-        const headerRowData = [];
-        tr.querySelectorAll('th').forEach(th => {
-            headerRowData.push({ v: th.textContent, s: headerStyle });
-        });
-        data.push(headerRowData);
-    });
-
-    // --- 3. Processar Corpo ---
-    table.querySelectorAll('tbody tr').forEach(tr => {
-        if (tr.querySelector('td')?.colSpan > 1) return; 
-
-        let rowStyle = {};
-        
-        if (tr.classList.contains('calibrated-dhme')) {
-            rowStyle.fill = calibratedFill.fill;
-        } else if (tr.classList.contains('not-calibrated')) {
-            rowStyle.fill = notCalibratedFill.fill;
-        }
-        if (tr.classList.contains('in-external-maintenance')) {
-            rowStyle.font = maintenanceFont.font;
-        }
-        
-        const rowData = [];
-        tr.querySelectorAll('td').forEach(td => {
-            rowData.push({ v: td.textContent, s: rowStyle });
-        });
-        data.push(rowData);
-    });
-
-    if (data.length <= 1) {
-        alert("Não há dados na tabela para exportar.");
+    // Garante que a biblioteca ExcelJS está disponível
+    if (typeof ExcelJS === 'undefined') {
+        alert('Erro: A biblioteca de exportação de Excel (ExcelJS) não foi carregada.');
         return;
     }
-
-    // --- 4. Criar e Salvar Planilha ---
-    const ws = XLSX.utils.aoa_to_sheet(data);
     
-    const colWidths = data[0].map((_, i) => ({
-        wch: data.reduce((w, r) => Math.max(w, r[i]?.v?.toString().length || 10), 10) + 2
-    }));
-    ws['!cols'] = colWidths;
+    outputDiv.textContent = `Gerando arquivo Excel estilizado: ${fileName}.xlsx...`;
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Dados Filtrados");
-    XLSX.writeFile(wb, `${fileName}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    try {
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Dados');
+
+        const headerFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0056B3' } }; 
+        const headerFont = { name: 'Arial', bold: true, color: { argb: 'FFFFFFFF' } };
+        const calibratedFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFB3E6B3' } };
+        const notCalibratedFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFCCCC' } };
+        const maintenanceFont = { name: 'Arial', color: { argb: 'FFDC3545' }, bold: true, italic: true };
+
+        const headerHTMLRows = Array.from(table.querySelectorAll('thead tr'));
+        const headerData = [];
+        headerHTMLRows.forEach(tr => {
+            if (tr.id === 'headerFilters') return; 
+            const rowValues = [];
+            tr.querySelectorAll('th').forEach(th => rowValues.push(th.textContent));
+            headerData.push(rowValues);
+        });
+
+        const headerRow = worksheet.addRow(headerData[0]);
+        headerRow.eachCell(cell => {
+            cell.fill = headerFill;
+            cell.font = headerFont;
+            cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        });
+
+        const bodyHTMLRows = Array.from(table.querySelectorAll('tbody tr'));
+        bodyHTMLRows.forEach(tr => {
+            if (tr.querySelector('td')?.colSpan > 1) return; 
+
+            const cellValues = Array.from(tr.querySelectorAll('td')).map(td => td.textContent);
+            const addedRow = worksheet.addRow(cellValues);
+
+            addedRow.eachCell(cell => {
+                let cellFill = null;
+                if (tr.classList.contains('calibrated-dhme')) {
+                    cellFill = calibratedFill;
+                } else if (tr.classList.contains('not-calibrated')) {
+                    cellFill = notCalibratedFill;
+                }
+                if(cellFill) cell.fill = cellFill;
+
+                if (tr.classList.contains('in-external-maintenance')) {
+                    cell.font = maintenanceFont;
+                }
+            });
+        });
+
+        worksheet.columns.forEach(column => {
+            let maxLength = 0;
+            column.eachCell({ includeEmpty: true }, cell => {
+                let columnLength = cell.value ? cell.value.toString().length : 10;
+                if (columnLength > maxLength) {
+                    maxLength = columnLength;
+                }
+            });
+            column.width = maxLength < 10 ? 10 : maxLength + 2;
+        });
+        
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `${fileName}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+        link.click();
+        URL.revokeObjectURL(link.href);
+        outputDiv.textContent = `Arquivo ${fileName}.xlsx gerado com sucesso!`;
+
+    } catch (error) {
+        console.error("Erro ao gerar arquivo Excel com ExcelJS:", error);
+        outputDiv.textContent = `Erro ao gerar arquivo: ${error.message}`;
+        alert("Ocorreu um erro ao gerar o arquivo Excel. Verifique o console para mais detalhes.");
+    }
 }
 
-// --- Event Listeners atualizados ---
+
+// --- EVENT LISTENERS ATUALIZADOS PARA USAR A NOVA FUNÇÃO ---
 exportButton.addEventListener('click', () => {
-    exportStyledTableToExcel('equipmentTable', 'equipamentos_filtrados');
+    exportWithExcelJS('equipmentTable', 'equipamentos_filtrados');
 });
 
 exportOsButton.addEventListener('click', () => {
-    exportStyledTableToExcel('osTable', 'os_abertas_filtradas');
+    exportWithExcelJS('osTable', 'os_abertas_filtradas');
 });
 // -----------------------------------------------------------------
 
-// O resto do arquivo (event listeners de navegação e ronda) permanece igual
 showEquipmentButton.addEventListener('click', () => toggleSectionVisibility('equipmentSection'));
 showOsButton.addEventListener('click', () => toggleSectionVisibility('osSection'));
 showRondaButton.addEventListener('click', () => toggleSectionVisibility('rondaSection')); 
