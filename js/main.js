@@ -472,6 +472,9 @@ function applyAllFiltersAndRender() {
     updateEquipmentCount(filteredEquipments.length);
 }
 
+// ===================================================================================
+// === NOVA FUNÇÃO DE EXPORTAÇÃO GENÉRICA E CORRIGIDA ===
+// ===================================================================================
 /**
  * Função genérica para exportar uma tabela HTML para Excel com estilos baseados em classes CSS.
  * @param {string} tableId - O ID da tabela a ser exportada.
@@ -488,18 +491,16 @@ function exportStyledTableToExcel(tableId, fileName) {
     // --- 1. Definir os Estilos ---
     const headerStyle = {
         font: { bold: true, color: { rgb: "FFFFFFFF" } },
-        fill: { fgColor: { rgb: "FF0056B3" } },
+        fill: { fgColor: { rgb: "FF0056B3" } }, // Azul escuro
         alignment: { vertical: "center", horizontal: "center" }
     };
-    const calibratedStyle = { fill: { fgColor: { rgb: "FFB3E6B3" } } }; // Verde
-    const notCalibratedStyle = { fill: { fgColor: { rgb: "FFFFCCCC" } } }; // Vermelho
+    const calibratedFill = { fill: { fgColor: { rgb: "FFB3E6B3" } } }; // Fundo Verde
+    const notCalibratedFill = { fill: { fgColor: { rgb: "FFFFCCCC" } } }; // Fundo Vermelho
     const maintenanceFont = { font: { color: { rgb: "FFDC3545" }, bold: true, italic: true } };
 
     // --- 2. Processar Cabeçalho ---
-    const headerRows = table.querySelectorAll('thead tr');
-    headerRows.forEach(tr => {
-        // Ignorar a linha de filtros do cabeçalho
-        if (tr.id === 'headerFilters') return;
+    table.querySelectorAll('thead tr').forEach(tr => {
+        if (tr.id === 'headerFilters') return; // Ignorar linha de filtros
 
         const headerRowData = [];
         tr.querySelectorAll('th').forEach(th => {
@@ -508,28 +509,29 @@ function exportStyledTableToExcel(tableId, fileName) {
         data.push(headerRowData);
     });
 
-    // --- 3. Processar Corpo ---
+    // --- 3. Processar Corpo da Tabela ---
     table.querySelectorAll('tbody tr').forEach(tr => {
         if (tr.querySelector('td')?.colSpan > 1) return; // Pular linha de "nenhum dado"
 
+        // **LÓGICA CORRIGIDA: Determina o estilo da LINHA INTEIRA primeiro**
+        let rowStyle = {};
+        
+        // Aplica a cor de fundo
+        if (tr.classList.contains('calibrated-dhme')) {
+            rowStyle.fill = calibratedFill.fill;
+        } else if (tr.classList.contains('not-calibrated')) {
+            rowStyle.fill = notCalibratedFill.fill;
+        }
+
+        // Aplica (ou mescla) o estilo da fonte
+        if (tr.classList.contains('in-external-maintenance')) {
+            rowStyle.font = maintenanceFont.font;
+        }
+        
         const rowData = [];
         tr.querySelectorAll('td').forEach(td => {
-            let cellStyle = {};
-            
-            // Cor de fundo
-            if (tr.classList.contains('calibrated-dhme')) {
-                cellStyle.fill = calibratedStyle.fill;
-            } else if (tr.classList.contains('not-calibrated')) {
-                cellStyle.fill = notCalibratedStyle.fill;
-            }
-
-            // Estilo da fonte
-            if (tr.classList.contains('in-external-maintenance')) {
-                // `Object.assign` mescla os objetos de estilo
-                cellStyle.font = Object.assign(cellStyle.font || {}, maintenanceFont.font);
-            }
-            
-            rowData.push({ v: td.textContent, s: cellStyle });
+            // Aplica o mesmo estilo pré-calculado para todas as células da linha
+            rowData.push({ v: td.textContent, s: rowStyle });
         });
         data.push(rowData);
     });
@@ -544,7 +546,7 @@ function exportStyledTableToExcel(tableId, fileName) {
     
     // Auto-ajuste de colunas (estimativa)
     const colWidths = data[0].map((_, i) => ({
-        wch: data.reduce((w, r) => Math.max(w, r[i]?.v?.toString().length || 10), 10)
+        wch: data.reduce((w, r) => Math.max(w, r[i]?.v?.toString().length || 10), 10) + 2 // Adiciona um pouco de padding
     }));
     ws['!cols'] = colWidths;
 
@@ -553,14 +555,14 @@ function exportStyledTableToExcel(tableId, fileName) {
     XLSX.writeFile(wb, `${fileName}_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
 
-// Event Listeners para os elementos de interação do usuário
+// --- Event Listeners para os elementos de interação do usuário ---
 processButton.addEventListener('click', handleProcessFile);
 sectorFilter.addEventListener('change', applyAllFiltersAndRender); 
 calibrationStatusFilter.addEventListener('change', applyAllFiltersAndRender); 
 searchInput.addEventListener('keyup', applyAllFiltersAndRender);
 maintenanceFilter.addEventListener('change', applyAllFiltersAndRender); 
 
-// --- NOVOS EVENTOS DE EXPORTAÇÃO USANDO A FUNÇÃO GENÉRICA ---
+// --- NOVOS EVENTOS DE EXPORTAÇÃO USANDO A FUNÇÃO GENÉRICA CORRIGIDA ---
 exportButton.addEventListener('click', () => {
     exportStyledTableToExcel('equipmentTable', 'equipamentos_filtrados');
 });
