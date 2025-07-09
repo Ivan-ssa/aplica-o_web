@@ -98,7 +98,6 @@ function populateCalibrationStatusFilter(rawCalibrationsData) {
 
     filterElement.innerHTML = '<option value="">Todos os Status</option>';
     
-    // Opções fixas que permanecem
     const fixedOptions = [
         { value: 'Calibrado (Consolidado)', text: 'Calibrado (Consolidado)' },
         { value: 'Calibrado (Total)', text: 'Calibrado (Total)' }, 
@@ -113,7 +112,6 @@ function populateCalibrationStatusFilter(rawCalibrationsData) {
         filterElement.appendChild(option);
     });
 
-    // Adiciona opções de divergência por fornecedor dinamicamente
     const uniqueSuppliers = new Set();
     rawCalibrationsData.forEach(item => {
         const fornecedor = String(item.FornecedorConsolidacao || item.Fornecedor || '').trim();
@@ -475,22 +473,84 @@ function applyAllFiltersAndRender() {
 }
 
 /**
- * Exporta a tabela de equipamentos exibida para um arquivo Excel.
+ * Função genérica para exportar uma tabela HTML para Excel com estilos baseados em classes CSS.
+ * @param {string} tableId - O ID da tabela a ser exportada.
+ * @param {string} fileName - O nome do arquivo Excel a ser gerado.
  */
-function exportTableToExcel() {
-    const table = document.getElementById('equipmentTable');
-    // Esconder a linha de filtros do cabeçalho antes de exportar
-    const headerFiltersRowElement = document.getElementById('headerFilters');
-    const originalDisplay = headerFiltersRowElement.style.display;
-    headerFiltersRowElement.style.display = 'none';
+function exportStyledTableToExcel(tableId, fileName) {
+    const table = document.getElementById(tableId);
+    if (!table) {
+        alert(`Tabela com ID "${tableId}" não encontrada.`);
+        return;
+    }
+    const data = [];
 
-    const ws = XLSX.utils.table_to_sheet(table);
+    // --- 1. Definir os Estilos ---
+    const headerStyle = {
+        font: { bold: true, color: { rgb: "FFFFFFFF" } },
+        fill: { fgColor: { rgb: "FF0056B3" } },
+        alignment: { vertical: "center", horizontal: "center" }
+    };
+    const calibratedStyle = { fill: { fgColor: { rgb: "FFB3E6B3" } } }; // Verde
+    const notCalibratedStyle = { fill: { fgColor: { rgb: "FFFFCCCC" } } }; // Vermelho
+    const maintenanceFont = { font: { color: { rgb: "FFDC3545" }, bold: true, italic: true } };
+
+    // --- 2. Processar Cabeçalho ---
+    const headerRows = table.querySelectorAll('thead tr');
+    headerRows.forEach(tr => {
+        // Ignorar a linha de filtros do cabeçalho
+        if (tr.id === 'headerFilters') return;
+
+        const headerRowData = [];
+        tr.querySelectorAll('th').forEach(th => {
+            headerRowData.push({ v: th.textContent, s: headerStyle });
+        });
+        data.push(headerRowData);
+    });
+
+    // --- 3. Processar Corpo ---
+    table.querySelectorAll('tbody tr').forEach(tr => {
+        if (tr.querySelector('td')?.colSpan > 1) return; // Pular linha de "nenhum dado"
+
+        const rowData = [];
+        tr.querySelectorAll('td').forEach(td => {
+            let cellStyle = {};
+            
+            // Cor de fundo
+            if (tr.classList.contains('calibrated-dhme')) {
+                cellStyle.fill = calibratedStyle.fill;
+            } else if (tr.classList.contains('not-calibrated')) {
+                cellStyle.fill = notCalibratedStyle.fill;
+            }
+
+            // Estilo da fonte
+            if (tr.classList.contains('in-external-maintenance')) {
+                // `Object.assign` mescla os objetos de estilo
+                cellStyle.font = Object.assign(cellStyle.font || {}, maintenanceFont.font);
+            }
+            
+            rowData.push({ v: td.textContent, s: cellStyle });
+        });
+        data.push(rowData);
+    });
+
+    if (data.length <= 1) { // Apenas cabeçalho
+        alert("Não há dados na tabela para exportar.");
+        return;
+    }
+
+    // --- 4. Criar e Salvar Planilha ---
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    
+    // Auto-ajuste de colunas (estimativa)
+    const colWidths = data[0].map((_, i) => ({
+        wch: data.reduce((w, r) => Math.max(w, r[i]?.v?.toString().length || 10), 10)
+    }));
+    ws['!cols'] = colWidths;
+
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Equipamentos Filtrados");
-    XLSX.writeFile(wb, "equipamentos_filtrados.xlsx");
-
-    // Restaurar a visibilidade da linha de filtros
-    headerFiltersRowElement.style.display = originalDisplay;
+    XLSX.utils.book_append_sheet(wb, ws, "Dados Filtrados");
+    XLSX.writeFile(wb, `${fileName}_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
 
 // Event Listeners para os elementos de interação do usuário
@@ -499,83 +559,16 @@ sectorFilter.addEventListener('change', applyAllFiltersAndRender);
 calibrationStatusFilter.addEventListener('change', applyAllFiltersAndRender); 
 searchInput.addEventListener('keyup', applyAllFiltersAndRender);
 maintenanceFilter.addEventListener('change', applyAllFiltersAndRender); 
-exportButton.addEventListener('click', exportTableToExcel);
 
-// --- LÓGICA DE EXPORTAÇÃO CORRIGIDA PARA OS COM ESTILOS ---
-exportOsButton.addEventListener('click', () => {
-    const osTable = document.getElementById('osTable');
-    const data = [];
-
-    // --- 1. Definir os Estilos ---
-    const headerStyle = {
-        font: { bold: true, color: { rgb: "FFFFFFFF" } },
-        fill: { fgColor: { rgb: "FF0056B3" } }, // Azul mais escuro
-        alignment: { vertical: "center", horizontal: "center" }
-    };
-    const calibratedStyle = { fill: { fgColor: { rgb: "FFB3E6B3" } } }; // Verde claro
-    const notCalibratedStyle = { fill: { fgColor: { rgb: "FFFFCCCC" } } }; // Vermelho claro
-    const maintenanceFont = { font: { color: { rgb: "FFDC3545" }, bold: true, italic: true } };
-
-    // --- 2. Processar Cabeçalho ---
-    const headerRow = [];
-    osTable.querySelectorAll('thead tr th').forEach(th => {
-        headerRow.push({ v: th.textContent, s: headerStyle });
-    });
-    data.push(headerRow);
-
-    // --- 3. Processar Linhas do Corpo da Tabela ---
-    osTable.querySelectorAll('tbody tr').forEach(tr => {
-        // Pular a linha de "nenhuma OS encontrada"
-        if (tr.querySelector('td')?.colSpan > 1) {
-            return; 
-        }
-
-        const rowData = [];
-        tr.querySelectorAll('td').forEach(td => {
-            let cellStyle = {};
-            
-            // Aplicar cor de fundo
-            if (tr.classList.contains('calibrated-dhme')) {
-                cellStyle.fill = calibratedStyle.fill;
-            } else if (tr.classList.contains('not-calibrated')) {
-                cellStyle.fill = notCalibratedStyle.fill;
-            }
-            
-            // Aplicar/mesclar estilo de fonte para manutenção
-            if (tr.classList.contains('in-external-maintenance')) {
-                cellStyle.font = maintenanceFont.font;
-            }
-            
-            rowData.push({ v: td.textContent, s: cellStyle });
-        });
-        data.push(rowData);
-    });
-
-    // --- 4. Criar a Planilha e o Arquivo ---
-    if (data.length <= 1) {
-        alert("Não há dados de OS para exportar.");
-        return;
-    }
-    
-    const ws = XLSX.utils.aoa_to_sheet(data);
-
-    // Definir largura das colunas
-    ws['!cols'] = [
-        { wch: 10 }, // OS
-        { wch: 15 }, // Patrimônio
-        { wch: 20 }, // Nº de Série
-        { wch: 30 }, // Equipamento
-        { wch: 25 }, // Modelo
-        { wch: 25 }, // Fabricante
-        { wch: 20 }  // Setor
-    ];
-
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "OS Abertas Filtradas");
-    XLSX.writeFile(wb, `os_abertas_filtradas_${new Date().toISOString().slice(0, 10)}.xlsx`);
+// --- NOVOS EVENTOS DE EXPORTAÇÃO USANDO A FUNÇÃO GENÉRICA ---
+exportButton.addEventListener('click', () => {
+    exportStyledTableToExcel('equipmentTable', 'equipamentos_filtrados');
 });
-// --- FIM DA LÓGICA DE EXPORTAÇÃO DE OS ---
 
+exportOsButton.addEventListener('click', () => {
+    exportStyledTableToExcel('osTable', 'os_abertas_filtradas');
+});
+// -------------------------------------------------------------
 
 showEquipmentButton.addEventListener('click', () => toggleSectionVisibility('equipmentSection'));
 showOsButton.addEventListener('click', () => toggleSectionVisibility('osSection'));

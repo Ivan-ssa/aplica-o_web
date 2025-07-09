@@ -89,10 +89,7 @@ th, td {
     color: #495057;
 }
 
-/* Estilos para linhas pares e hover na tabela */
-tbody tr:nth-child(even) {
-    background-color: #f8f9fa; 
-}
+/* Estilo para hover na tabela */
 tbody tr:hover {
     background-color: #e2e6ea;
 }
@@ -137,20 +134,17 @@ tbody tr:hover {
 }
 
 /* Estilos para destaque das linhas (status de calibração e manutenção) */
-tr.not-calibrated {
-    background-color: #ffcccc; /* Vermelho claro */
+tbody tr.not-calibrated {
+    background-color: #ffcccc !important; /* Vermelho claro com !important para garantir prioridade */
 }
-tr.calibrated-dhme { /* Verde claro forte para QUALQUER equipamento calibrado pela consolidação */
-    background-color: #b3e6b3; 
+tbody tr.calibrated-dhme { 
+    background-color: #b3e6b3 !important; /* Verde claro com !important para garantir prioridade */
 }
-/* NOVO ESTILO PARA MANUTENÇÃO EXTERNA - MUDA COR DA FONTE E ESTILO */
-tr.in-external-maintenance td { /* Aplicar diretamente ao TD para sobrescrever outras cores de fonte */
+/* Estilo para Manutenção Externa - MUDA COR DA FONTE E ESTILO */
+tbody tr.in-external-maintenance td { /* Aplicar diretamente ao TD para sobrescrever outras cores de fonte */
     color: #dc3545 !important; /* Cor vermelha para o texto */
     font-style: italic; 
     font-weight: bold; 
-}
-tr.expired-calibration { 
-    background-color: #fff3cd;
 }
 
 /* Reduzir o tamanho da fonte para os filtros globais e botões para consistência */
