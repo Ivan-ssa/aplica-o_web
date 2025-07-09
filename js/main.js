@@ -92,20 +92,28 @@ function toggleSectionVisibility(sectionToShowId) {
 /**
  * Popula o dropdown de Status de Calibração (global) dinamicamente.
  * @param {Array<Object>} rawCalibrationsData - Dados brutos da consolidação para extrair fornecedores.
- * @param {HTMLElement} calibrationStatusFilterElement - O elemento <select> do filtro.
  */
 function populateCalibrationStatusFilter(rawCalibrationsData) {
     const filterElement = calibrationStatusFilter; 
 
     filterElement.innerHTML = '<option value="">Todos os Status</option>';
+    
+    // Opções fixas que permanecem
+    const fixedOptions = [
+        { value: 'Calibrado (Consolidado)', text: 'Calibrado (Consolidado)' },
+        { value: 'Calibrado (Total)', text: 'Calibrado (Total)' }, 
+        { value: 'Divergência (Todos Fornecedores)', text: 'Divergência (Todos Fornecedores)' },
+        { value: 'Não Calibrado/Não Encontrado (Seu Cadastro)', text: 'Não Calibrado/Não Encontrado (Seu Cadastro)' },
+    ];
+    
+    fixedOptions.forEach(opt => {
+        const option = document.createElement('option');
+        option.value = opt.value;
+        option.textContent = opt.text;
+        filterElement.appendChild(option);
+    });
 
-    // Adiciona a nova opção "Calibrado (Consolidado)"
-    const consolidatedCalibratedOption = document.createElement('option');
-    consolidatedCalibratedOption.value = 'Calibrado (Consolidado)';
-    consolidatedCalibratedOption.textContent = 'Calibrado (Consolidado)';
-    filterElement.appendChild(consolidatedCalibratedOption);
-
-    // As opções de divergência por fornecedor ainda podem ser úteis
+    // Adiciona opções de divergência por fornecedor dinamicamente
     const uniqueSuppliers = new Set();
     rawCalibrationsData.forEach(item => {
         const fornecedor = String(item.FornecedorConsolidacao || item.Fornecedor || '').trim();
@@ -115,28 +123,10 @@ function populateCalibrationStatusFilter(rawCalibrationsData) {
     });
 
     Array.from(uniqueSuppliers).sort().forEach(fornecedor => {
-        // As opções de calibração por fornecedor específico serão removidas em breve,
-        // mas mantidas para o filtro de Divergência por enquanto
         const optionDivergence = document.createElement('option');
         optionDivergence.value = `Divergência (${fornecedor})`;
         optionDivergence.textContent = `Divergência (${fornecedor})`;
         filterElement.appendChild(optionDivergence);
-    });
-
-    // Opções fixas que permanecem
-    const fixedOptions = [
-        { value: 'Calibrado (Total)', text: 'Calibrado (Total)' }, 
-        { value: 'Divergência (Todos Fornecedores)', text: 'Divergência (Todos Fornecedores)' },
-        { value: 'Não Calibrado/Não Encontrado (Seu Cadastro)', text: 'Não Calibrado/Não Encontrado (Seu Cadastro)' },
-        { value: 'Não Cadastrado', text: 'Não Cadastrado' }, 
-        { value: 'Não Calibrado', text: 'Não Calibrado' } 
-    ];
-
-    fixedOptions.forEach(opt => {
-        const option = document.createElement('option');
-        option.value = opt.value;
-        option.textContent = opt.text;
-        filterElement.appendChild(option);
     });
 }
 
@@ -157,20 +147,17 @@ async function handleProcessFile() {
     let consolidatedCalibrationsFile = null; 
     let externalMaintenanceFile = null; 
     let osCaliAbertasFile = null; 
-    let rondaExistingFile = null; 
 
     for (const file of files) {
         const fileNameLower = file.name.toLowerCase();
-        if (fileNameLower.includes('equipamentos') && !equipmentFile) {
+        if (fileNameLower.includes('equipamentos')) {
             equipmentFile = file;
-        } else if (fileNameLower.includes('empresa_cali_vba') && !consolidatedCalibrationsFile) { 
+        } else if (fileNameLower.includes('empresa_cali_vba') || fileNameLower.includes('consolidado')) { 
             consolidatedCalibrationsFile = file;
-        } else if (fileNameLower.includes('manu_externa') && !externalMaintenanceFile) { 
+        } else if (fileNameLower.includes('manu_externa')) { 
             externalMaintenanceFile = file;
-        } else if (fileNameLower.includes('os_cali_abertas') && !osCaliAbertasFile) { 
+        } else if (fileNameLower.includes('os_cali_abertas')) { 
             osCaliAbertasFile = file;
-        } else if (fileNameLower.includes('ronda_existente') && !rondaExistingFile) { 
-            rondaExistingFile = file;
         }
     }
 
@@ -185,7 +172,7 @@ async function handleProcessFile() {
 
         if (allEquipments.length === 0) {
             outputDiv.textContent += `\nNenhum dado encontrado no arquivo de equipamentos "${equipmentFile.name}".`;
-            renderTable([], equipmentTableBody, window.consolidatedCalibratedMap, window.externalMaintenanceSNs); 
+            renderTable([], equipmentTableBody, new Map(), new Set()); 
             populateSectorFilter([], sectorFilter);
             updateEquipmentCount(0);
             renderOsTable([], osTableBody, new Map(), new Map(), new Map(), new Set(), normalizeId); 
@@ -219,7 +206,7 @@ async function handleProcessFile() {
                     const dataCalibracao = item.DataCalibracaoConsolidada || item['Data de Calibração'] || ''; 
 
                     if (sn && fornecedor) {
-                        window.consolidatedCalibratedMap.set(sn, { fornecedor: fornecedor, dataCalibacao: dataCalibracao });
+                        window.consolidatedCalibratedMap.set(sn, { fornecedor: fornecedor, dataCalibricao: dataCalibracao });
                     }
                 });
                 outputDiv.textContent += `\n${window.consolidatedCalibratedMap.size} SNs de calibração consolidados encontrados.`;
@@ -237,7 +224,7 @@ async function handleProcessFile() {
             const maintenanceData = await readExcelFile(externalMaintenanceFile);
             if (maintenanceData.length > 0) {
                 maintenanceData.forEach(item => {
-                    const sn = normalizeId(item.NumeroSerie); 
+                    const sn = normalizeId(item.NumeroSerie || item['Nº de Série']); 
                     if (sn) {
                         window.externalMaintenanceSNs.add(sn);
                     }
@@ -274,7 +261,7 @@ async function handleProcessFile() {
         applyAllFiltersAndRender(); 
         populateSectorFilter(allEquipments, sectorFilter); 
         populateCalibrationStatusFilter(window.consolidatedCalibrationsRawData); 
-        setupHeaderFilters(allEquipments); // Chamada para configurar filtros de cabeçalho
+        setupHeaderFilters(allEquipments);
 
         renderOsTable(
             window.osRawData,
@@ -286,14 +273,7 @@ async function handleProcessFile() {
             normalizeId 
         );
         populateRondaSectorSelect(allEquipments, rondaSectorSelect);
-        if (rondaExistingFile) {
-            outputDiv.textContent += `\nCarregando Ronda Existente: ${rondaExistingFile.name}...`;
-            const existingRondaData = await readExcelFile(rondaExistingFile);
-            loadExistingRonda(existingRondaData, rondaTableBody, rondaCountSpan);
-            outputDiv.textContent += `\nRonda Existente carregada.`;
-        } else {
-            initRonda([], rondaTableBody, rondaCountSpan, '', normalizeId); 
-        }
+        initRonda([], rondaTableBody, rondaCountSpan, '', normalizeId);
 
         toggleSectionVisibility('equipmentSection'); 
 
@@ -364,28 +344,16 @@ function setupHeaderFilters(equipments) {
                     if (columnInfo.prop === 'StatusCalibacao') {
                         const calibInfo = window.consolidatedCalibratedMap.get(normalizeId(eq.NumeroSerie));
                         if (calibInfo) {
-                            value = 'Calibrado (Consolidado)'; // Valor genérico
+                            value = 'Calibrado (Consolidado)';
                         } else {
                             const originalStatusLower = String(eq?.StatusCalibacao || '').toLowerCase();
-                            if (originalStatusLower.includes('não calibrado') || originalStatusLower.includes('não cadastrado')) {
+                            if (originalStatusLower.includes('não calibrado') || originalStatusLower.includes('não cadastrado') || originalStatusLower.trim() === '') {
                                 value = 'Não Calibrado/Não Encontrado (Seu Cadastro)';
-                            } else if (originalStatusLower.includes('calibrado (total)')) {
-                                value = 'Calibrado (Total)';
                             } else {
-                                value = 'Não Calibrado/Não Encontrado (Seu Cadastro)';
+                                value = 'Calibrado (Total)';
                             }
                         }
-                    } else if (columnInfo.prop === 'StatusManutencao') { 
-                         const equipmentSN = normalizeId(eq?.NumeroSerie); 
-                         if (window.externalMaintenanceSNs.has(equipmentSN)) {
-                             value = 'Em Manutenção Externa';
-                         } else {
-                             value = String(eq?.StatusManutencao || ''); 
-                         }
-                    } else if (columnInfo.prop === 'NumeroSerie' || columnInfo.prop === 'Patrimonio') { 
-                        value = normalizeId(eq[columnInfo.prop]); 
-                    }
-                    else {
+                    } else {
                         value = eq[columnInfo.prop];
                     }
 
@@ -488,16 +456,16 @@ function applyAllFiltersAndRender() {
     document.querySelectorAll('#headerFilters .filter-popup').forEach(popup => {
         const property = popup.dataset.property;
         const selectedValues = [];
-        popup.querySelectorAll('input[type="checkbox"]:checked:not(.select-all)').forEach(checkbox => {
-            selectedValues.push(checkbox.value); 
+        const allCheckboxes = popup.querySelectorAll('input[type="checkbox"]:not(.select-all)');
+        allCheckboxes.forEach(checkbox => {
+            if (checkbox.checked) {
+                selectedValues.push(checkbox.value.toLowerCase());
+            }
         });
 
-        const allOptionsCount = popup.querySelectorAll('input[type="checkbox"]:not(.select-all)').length;
-
-        if (selectedValues.length > 0 && selectedValues.length < allOptionsCount) {
+        const allOptionsCount = allCheckboxes.length;
+        if (selectedValues.length < allOptionsCount) {
             filters.headerFilters[property] = selectedValues;
-        } else if (selectedValues.length === 0 && allOptionsCount > 0 && !popup.querySelector('.select-all').checked) {
-            filters.headerFilters[property] = []; 
         }
     });
 
@@ -507,11 +475,13 @@ function applyAllFiltersAndRender() {
 }
 
 /**
- * Exporta a tabela exibida atualmente para um arquivo Excel.
+ * Exporta a tabela de equipamentos exibida para um arquivo Excel.
  */
 function exportTableToExcel() {
     const table = document.getElementById('equipmentTable');
+    // Esconder a linha de filtros do cabeçalho antes de exportar
     const headerFiltersRowElement = document.getElementById('headerFilters');
+    const originalDisplay = headerFiltersRowElement.style.display;
     headerFiltersRowElement.style.display = 'none';
 
     const ws = XLSX.utils.table_to_sheet(table);
@@ -519,7 +489,8 @@ function exportTableToExcel() {
     XLSX.utils.book_append_sheet(wb, ws, "Equipamentos Filtrados");
     XLSX.writeFile(wb, "equipamentos_filtrados.xlsx");
 
-    headerFiltersRowElement.style.display = '';
+    // Restaurar a visibilidade da linha de filtros
+    headerFiltersRowElement.style.display = originalDisplay;
 }
 
 // Event Listeners para os elementos de interação do usuário
@@ -530,29 +501,20 @@ searchInput.addEventListener('keyup', applyAllFiltersAndRender);
 maintenanceFilter.addEventListener('change', applyAllFiltersAndRender); 
 exportButton.addEventListener('click', exportTableToExcel);
 
+// --- LÓGICA DE EXPORTAÇÃO CORRIGIDA PARA OS COM ESTILOS ---
 exportOsButton.addEventListener('click', () => {
     const osTable = document.getElementById('osTable');
-    const rows = osTable.querySelectorAll('tr');
     const data = [];
 
     // --- 1. Definir os Estilos ---
-    // Estilo para o cabeçalho
     const headerStyle = {
-        font: { bold: true, color: { rgb: "FFFFFFFF" } }, // Fonte branca e em negrito
-        fill: { fgColor: { rgb: "FF4F81BD" } }  // Fundo azul escuro
+        font: { bold: true, color: { rgb: "FFFFFFFF" } },
+        fill: { fgColor: { rgb: "FF0056B3" } }, // Azul mais escuro
+        alignment: { vertical: "center", horizontal: "center" }
     };
-    // Estilo para linhas "Calibrado"
-    const calibratedStyle = {
-        fill: { fgColor: { rgb: "FFB3E6B3" } } // Verde claro
-    };
-    // Estilo para linhas "Não Calibrado"
-    const notCalibratedStyle = {
-        fill: { fgColor: { rgb: "FFFFCCCC" } } // Vermelho claro
-    };
-    // Estilo para fonte em "Manutenção Externa" (pode ser combinado com os outros)
-    const maintenanceFontStyle = {
-        font: { color: { rgb: "FFDC3545" }, bold: true, italic: true } // Fonte vermelha, negrito, itálico
-    };
+    const calibratedStyle = { fill: { fgColor: { rgb: "FFB3E6B3" } } }; // Verde claro
+    const notCalibratedStyle = { fill: { fgColor: { rgb: "FFFFCCCC" } } }; // Vermelho claro
+    const maintenanceFont = { font: { color: { rgb: "FFDC3545" }, bold: true, italic: true } };
 
     // --- 2. Processar Cabeçalho ---
     const headerRow = [];
@@ -563,27 +525,25 @@ exportOsButton.addEventListener('click', () => {
 
     // --- 3. Processar Linhas do Corpo da Tabela ---
     osTable.querySelectorAll('tbody tr').forEach(tr => {
+        // Pular a linha de "nenhuma OS encontrada"
+        if (tr.querySelector('td')?.colSpan > 1) {
+            return; 
+        }
+
         const rowData = [];
-        // Checa se a linha tem dados ou é a mensagem de "nenhuma OS encontrada"
-        if (tr.querySelector('td').colSpan > 1) {
-            return; // Pula a linha de mensagem
-        }
-
-        // Determina o estilo base da linha (cor de fundo)
-        let baseStyle = {};
-        if (tr.classList.contains('calibrated-dhme')) {
-            baseStyle = calibratedStyle;
-        } else if (tr.classList.contains('not-calibrated')) {
-            baseStyle = notCalibratedStyle;
-        }
-        
         tr.querySelectorAll('td').forEach(td => {
-            let cellStyle = { ...baseStyle }; // Começa com o estilo de fundo
-
-            // Se a linha também estiver em manutenção, mescla o estilo da fonte
+            let cellStyle = {};
+            
+            // Aplicar cor de fundo
+            if (tr.classList.contains('calibrated-dhme')) {
+                cellStyle.fill = calibratedStyle.fill;
+            } else if (tr.classList.contains('not-calibrated')) {
+                cellStyle.fill = notCalibratedStyle.fill;
+            }
+            
+            // Aplicar/mesclar estilo de fonte para manutenção
             if (tr.classList.contains('in-external-maintenance')) {
-                // Combina o estilo de fonte com qualquer preenchimento que já exista
-                cellStyle.font = { ...maintenanceFontStyle.font };
+                cellStyle.font = maintenanceFont.font;
             }
             
             rowData.push({ v: td.textContent, s: cellStyle });
@@ -592,9 +552,14 @@ exportOsButton.addEventListener('click', () => {
     });
 
     // --- 4. Criar a Planilha e o Arquivo ---
+    if (data.length <= 1) {
+        alert("Não há dados de OS para exportar.");
+        return;
+    }
+    
     const ws = XLSX.utils.aoa_to_sheet(data);
 
-    // Definir largura das colunas para melhor visualização
+    // Definir largura das colunas
     ws['!cols'] = [
         { wch: 10 }, // OS
         { wch: 15 }, // Patrimônio
@@ -609,11 +574,14 @@ exportOsButton.addEventListener('click', () => {
     XLSX.utils.book_append_sheet(wb, ws, "OS Abertas Filtradas");
     XLSX.writeFile(wb, `os_abertas_filtradas_${new Date().toISOString().slice(0, 10)}.xlsx`);
 });
+// --- FIM DA LÓGICA DE EXPORTAÇÃO DE OS ---
+
+
 showEquipmentButton.addEventListener('click', () => toggleSectionVisibility('equipmentSection'));
 showOsButton.addEventListener('click', () => toggleSectionVisibility('osSection'));
 showRondaButton.addEventListener('click', () => toggleSectionVisibility('rondaSection')); 
 
-// Event Listeners para a funcionalidade de Ronda (delegando para o rondaManager)
+// Event Listeners para a funcionalidade de Ronda
 startRondaButton.addEventListener('click', () => {
     initRonda(allEquipments, rondaTableBody, rondaCountSpan, rondaSectorSelect.value, normalizeId); 
 });
@@ -621,12 +589,16 @@ startRondaButton.addEventListener('click', () => {
 loadRondaButton.addEventListener('click', async () => {
     const file = rondaFileInput.files[0];
     if (file) {
-        outputDiv.textContent = `\nCarregando Ronda Existente: ${file.name}...`;
-        const existingRondaData = await readExcelFile(file);
-        loadRonda(existingRondaData, rondaTableBody, rondaCountSpan); 
-        outputDiv.textContent += `\nRonda Existente carregada.`;
+        try {
+            outputDiv.textContent = `\nCarregando Ronda Existente: ${file.name}...`;
+            const existingRondaData = await readExcelFile(file);
+            loadExistingRonda(existingRondaData, rondaTableBody, rondaCountSpan); 
+            outputDiv.textContent = `\nRonda Existente carregada.`;
+        } catch(error) {
+            outputDiv.textContent = `\nErro ao carregar ronda: ${error.message}`;
+        }
     } else {
-        outputDiv.textContent = `\nPor favor, selecione um arquivo de Ronda Existente.`;
+        alert(`Por favor, selecione um arquivo de Ronda para carregar.`);
     }
 });
 
