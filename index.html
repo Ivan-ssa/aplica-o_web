@@ -9,7 +9,7 @@
 <body>
     <h1>Leitor e Cruzamento de Dados Excel</h1>
 
-    <p>Selecione os arquivos Excel (o arquivo de equipamentos, a consolidação de calibrações e o de manutenção):</p>
+    <p>Selecione os arquivos de dados (equipamentos, calibrações, manutenção, OS e **localizações**):</p>
     <input type="file" id="excelFileInput" accept=".xls,.xlsx" multiple>
     <button id="processButton">Processar Arquivos</button>
 
@@ -35,17 +35,13 @@
         <div id="equipmentTableContainer" class="equipment-table-container">
             <div id="filterContainer">
                 <label for="sectorFilter">Filtrar por Setor:</label>
-                <select id="sectorFilter">
-                    <option value="">Todos os Setores</option>
-                </select>
+                <select id="sectorFilter"></select>
 
-                <label for="calibrationStatusFilter">Filtrar por Status de Calibração:</label>
-                <select id="calibrationStatusFilter">
-                    <option value="">Todos os Status</option>
-                </select>
+                <label for="calibrationStatusFilter">Filtrar por Status:</label>
+                <select id="calibrationStatusFilter"></select>
                 <span id="equipmentCount">Total: 0 equipamentos</span>
 
-                <label for="searchInput">Buscar por Nº Série ou Patrimônio:</label>
+                <label for="searchInput">Buscar:</label>
                 <input type="text" id="searchInput" placeholder="Digite SN, Patrimônio ou TAG...">
 
                 <label for="maintenanceFilter">Filtrar por Manutenção:</label>
@@ -54,7 +50,7 @@
                     <option value="Em Manutenção Externa">Em Manutenção Externa</option>
                 </select>
             </div>
-            <button id="exportButton" style="margin-bottom: 15px;">Exportar Tabela para Excel</button>
+            <button id="exportButton" style="margin-bottom: 15px;">Exportar para Excel</button>
             <table id="equipmentTable">
                 <thead>
                     <tr>
@@ -78,7 +74,7 @@
     <div id="osSection" class="section-container hidden">
         <h2>Ordens de Serviço em Aberto (OS)</h2>
         <div id="osTableContainer" class="equipment-table-container"> 
-            <p>Visão simplificada das OS em aberto com status de calibração e manutenção.</p>
+            <p>Visão simplificada das OS em aberto.</p>
             <span id="osCount">Total: 0 OS</span>
             <button id="exportOsButton" style="margin-bottom: 15px;">Exportar OS para Excel</button>
             <table id="osTable">
@@ -99,28 +95,33 @@
     </div>
 
     <div id="rondaSection" class="section-container hidden">
-        <h2>Ronda de Equipamentos</h2>
+        <h2>Ronda Guiada por Localização</h2>
         <div id="rondaControls">
-            <button id="startRondaScanButton">Iniciar Scanner QR Code</button>
-            <input type="text" id="rondaManualInput" placeholder="Ou digite a TAG/SN/Patrimônio">
-            <button id="rondaManualAddButton">Adicionar</button>
-            <button id="saveRondaButton" class="save-button">Finalizar e Salvar Ronda</button>
-            <span id="rondaCount">Equipamentos verificados: 0</span>
+            <label for="rondaSectorSelect">1. Selecione o Setor para a Ronda:</label>
+            <select id="rondaSectorSelect"></select>
+            <button id="startGuidedRondaButton">Iniciar/Ver Ronda do Setor</button>
+            <button id="saveRondaButton" class="save-button">Gerar Relatório da Ronda</button>
         </div>
         
+        <div id="rondaInfo">
+            <span id="rondaProgress">Progresso: 0/0</span>
+        </div>
+
         <div id="qrScannerContainer" class="hidden">
+            <p>Aponte a câmara para o QR Code do equipamento.</p>
             <div id="qr-reader"></div>
-            <button id="stopRondaScanButton">Parar Scanner</button>
+            <button id="stopRondaScanButton">Fechar Scanner</button>
         </div>
 
         <div id="rondaItemsContainer">
-            <p class="ronda-placeholder">Escaneie um QR Code ou digite um ID para começar a ronda.</p>
+            <p class="ronda-placeholder">Selecione um setor e clique em "Iniciar" para ver o checklist de localizações.</p>
         </div>
     </div>
 
     <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
     <script src="https://unpkg.com/html5-qrcode/html5-qrcode.min.js"></script>
+    
     <script type="module" src="js/main.js"></script>
 </body>
 </html>

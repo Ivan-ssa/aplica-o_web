@@ -1,137 +1,181 @@
 // js/rondaManager.js
 
 let html5QrCodeScanner;
-window.rondaData = []; // Começa sempre vazio
+let rondaChecklist = []; // Guarda o checklist de localizações para o setor atual
+let currentEditingLocation = null; // Guarda a localização que está a ser editada
 
 /**
- * Adiciona um cartão de item de ronda à interface.
- * @param {Object} item - O objeto de dados do equipamento.
+ * Preenche o dropdown de seleção de setor na página da ronda.
  */
-function renderRondaCard(item) {
-    const container = document.getElementById('rondaItemsContainer');
-    const placeholder = container.querySelector('.ronda-placeholder');
-    if (placeholder) placeholder.remove();
-
-    const card = document.createElement('div');
-    card.className = 'ronda-card';
-    card.dataset.sn = item.NumeroSerie;
-
-    card.innerHTML = `
-        <div class="card-header">
-            <strong>${item.Equipamento} (${item.TAG})</strong>
-            <small>SN: ${item.NumeroSerie} | Setor Oficial: ${item.Setor}</small>
-        </div>
-        <div class="card-body">
-            <div class="card-field">
-                <label for="loc-${item.NumeroSerie}">Localização Encontrada:</label>
-                <input type="text" id="loc-${item.NumeroSerie}" value="${item.Localizacao}" placeholder="Ex: UTI / Leito 03">
-            </div>
-            <div class="card-field">
-                <label for="disp-${item.NumeroSerie}">Disponibilidade:</label>
-                <select id="disp-${item.NumeroSerie}">
-                    <option value="" ${item.Disponibilidade === '' ? 'selected' : ''}>Selecione...</option>
-                    <option value="Disponível" ${item.Disponibilidade === 'Disponível' ? 'selected' : ''}>Disponível</option>
-                    <option value="Em Uso" ${item.Disponibilidade === 'Em Uso' ? 'selected' : ''}>Em Uso</option>
-                    <option value="Em Manutenção" ${item.Disponibilidade === 'Em Manutenção' ? 'selected' : ''}>Em Manutenção</option>
-                    <option value="Desativado" ${item.Disponibilidade === 'Desativado' ? 'selected' : ''}>Desativado</option>
-                    <option value="Perdido" ${item.Disponibilidade === 'Perdido' ? 'selected' : ''}>Perdido</option>
-                    <option value="Outro" ${item.Disponibilidade === 'Outro' ? 'selected' : ''}>Outro</option>
-                </select>
-            </div>
-             <div class="card-field">
-                <label for="obs-${item.NumeroSerie}">Observações:</label>
-                <input type="text" id="obs-${item.NumeroSerie}" value="${item.Observacoes}" placeholder="Qualquer observação relevante">
-            </div>
-        </div>
-    `;
-
-    card.querySelector(`#loc-${item.NumeroSerie}`).addEventListener('change', (e) => updateRondaItem(item.NumeroSerie, 'Localizacao', e.target.value));
-    card.querySelector(`#disp-${item.NumeroSerie}`).addEventListener('change', (e) => updateRondaItem(item.NumeroSerie, 'Disponibilidade', e.target.value));
-    card.querySelector(`#obs-${item.NumeroSerie}`).addEventListener('change', (e) => updateRondaItem(item.NumeroSerie, 'Observacoes', e.target.value));
-
-    container.prepend(card);
-    document.getElementById('rondaCount').textContent = `Equipamentos verificados: ${window.rondaData.length}`;
+export function populateRondaSectorSelect(locations, selectElement) {
+    selectElement.innerHTML = '<option value="">Selecione um Setor</option>';
+    const sectors = new Set(locations.map(loc => loc.Setor));
+    Array.from(sectors).sort().forEach(sector => {
+        const option = document.createElement('option');
+        option.value = sector;
+        option.textContent = sector;
+        selectElement.appendChild(option);
+    });
 }
 
 /**
- * Atualiza um item na lista de ronda (window.rondaData).
+ * Inicia uma ronda guiada para o setor selecionado, criando o checklist de localizações.
  */
-function updateRondaItem(sn, property, value) {
-    const item = window.rondaData.find(d => d.NumeroSerie === sn);
-    if (item) {
-        item[property] = value;
+export function startGuidedRonda(selectedSector, allLocations) {
+    if (!selectedSector) {
+        alert("Por favor, selecione um setor para iniciar a ronda.");
+        return;
     }
+
+    // Filtra as localizações para o setor selecionado e cria o checklist
+    rondaChecklist = allLocations
+        .filter(loc => loc.Setor === selectedSector)
+        .map(loc => ({
+            setor: loc.Setor,
+            subLocalizacao: loc.SubLocalizacao,
+            status: 'Pendente', // Pode ser 'Pendente', 'Verificado'
+            equipamentosEncontrados: [],
+            observacoes: ''
+        }));
+    
+    renderRondaChecklist();
 }
 
 /**
- * Lógica central para adicionar um equipamento à ronda, seja por QR Code ou manual.
- * @param {string} id - O ID (SN, TAG, Patrimônio) a ser procurado.
- * @returns {boolean} - Retorna true se o item foi adicionado com sucesso, false caso contrário.
+ * Renderiza o checklist de localizações na tela.
  */
-function addEquipmentToRonda(id) {
-    const normalizedId = String(id).trim().toLowerCase();
-    if (!normalizedId) return false;
+function renderRondaChecklist() {
+    const container = document.getElementById('rondaItemsContainer');
+    container.innerHTML = '';
 
+    if (rondaChecklist.length === 0) {
+        container.innerHTML = '<p class="ronda-placeholder">Nenhuma localização cadastrada para este setor.</p>';
+        updateRondaProgress();
+        return;
+    }
+
+    rondaChecklist.forEach((locationItem, index) => {
+        const card = document.createElement('div');
+        card.className = 'location-card';
+        card.classList.add(locationItem.status === 'Verificado' ? 'status-verified' : 'status-pending');
+        card.dataset.index = index;
+
+        let equipamentosHTML = locationItem.equipamentosEncontrados.map(eq => 
+            `<div class="found-equipment">
+                <span>✅ ${eq.Equipamento} (SN: ${eq.NumeroSerie})</span>
+                ${eq.isOutOfSector ? '<span class="warning">⚠️ FORA DO SETOR</span>' : ''}
+            </div>`
+        ).join('');
+
+        card.innerHTML = `
+            <div class="card-header">
+                <h3>${locationItem.subLocalizacao}</h3>
+                <span class="status-indicator">${locationItem.status}</span>
+            </div>
+            <div class="card-body">
+                <div class="found-equipments-list">${equipamentosHTML || '<p>Nenhum equipamento registado aqui.</p>'}</div>
+                <div class="card-actions">
+                    <button class="btn-scan" data-index="${index}">Escanear Equipamento</button>
+                    <input type="text" class="manual-add-input" placeholder="Ou digite TAG/SN">
+                    <button class="btn-manual-add" data-index="${index}">Adicionar</button>
+                </div>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+
+    // Adiciona os event listeners aos novos botões
+    container.querySelectorAll('.btn-scan').forEach(btn => btn.addEventListener('click', handleScanButtonClick));
+    container.querySelectorAll('.btn-manual-add').forEach(btn => btn.addEventListener('click', handleManualAddButtonClick));
+
+    updateRondaProgress();
+}
+
+/**
+ * Atualiza o contador de progresso da ronda.
+ */
+function updateRondaProgress() {
+    const verificados = rondaChecklist.filter(item => item.status === 'Verificado').length;
+    const total = rondaChecklist.length;
+    document.getElementById('rondaProgress').textContent = `Progresso: ${verificados} / ${total} localizações verificadas`;
+}
+
+/**
+ * Lida com o clique no botão "Escanear Equipamento" de um cartão de localização.
+ */
+function handleScanButtonClick(event) {
+    const locationIndex = event.target.dataset.index;
+    currentEditingLocation = rondaChecklist[locationIndex];
+    startScanner();
+}
+
+/**
+ * Lida com o clique no botão "Adicionar" manual de um cartão de localização.
+ */
+function handleManualAddButtonClick(event) {
+    const locationIndex = event.target.dataset.index;
+    const input = event.target.previousElementSibling;
+    const id = input.value;
+
+    if (!id.trim()) {
+        alert("Por favor, digite uma TAG ou SN.");
+        return;
+    }
+    
+    currentEditingLocation = rondaChecklist[locationIndex];
+    addEquipmentToLocation(id);
+    input.value = ''; // Limpa o campo
+}
+
+/**
+ * Adiciona um equipamento à localização que está a ser editada atualmente.
+ */
+function addEquipmentToLocation(equipmentId) {
+    if (!currentEditingLocation) return;
+    
+    const normalizedId = String(equipmentId).trim().toLowerCase();
     const equipmentFound = window.allEquipments.find(eq => 
         String(eq.NumeroSerie).trim().toLowerCase() === normalizedId || 
-        String(eq.TAG).trim().toLowerCase() === normalizedId ||
-        String(eq.Patrimonio).trim().toLowerCase() === normalizedId
+        String(eq.TAG).trim().toLowerCase() === normalizedId
     );
 
     if (!equipmentFound) {
-        alert(`Equipamento com ID "${id}" não encontrado na base de dados.`);
-        return false;
+        alert(`Equipamento com ID "${equipmentId}" não encontrado na base de dados.`);
+        return;
     }
 
-    if (window.rondaData.some(item => item.NumeroSerie === equipmentFound.NumeroSerie)) {
-        alert(`Equipamento "${equipmentFound.Equipamento}" já foi verificado nesta ronda.`);
-        return false;
+    if (currentEditingLocation.equipamentosEncontrados.some(eq => eq.NumeroSerie === equipmentFound.NumeroSerie)) {
+        alert(`Equipamento "${equipmentFound.Equipamento}" já foi adicionado a esta localização.`);
+        return;
     }
 
-    const newItem = {
-        TAG: equipmentFound.TAG ?? '',
-        Equipamento: equipmentFound.Equipamento ?? '',
-        Setor: equipmentFound.Setor ?? '',
-        NumeroSerie: equipmentFound.NumeroSerie ?? '',
-        Patrimonio: equipmentFound.Patrimonio ?? '',
-        Localizacao: '', Disponibilidade: '', Observacoes: ''
-    };
-    window.rondaData.push(newItem);
-    renderRondaCard(newItem);
-    return true;
+    const isOutOfSector = equipmentFound.Setor !== currentEditingLocation.setor;
+
+    currentEditingLocation.equipamentosEncontrados.push({
+        ...equipmentFound,
+        isOutOfSector: isOutOfSector
+    });
+    
+    currentEditingLocation.status = 'Verificado';
+
+    // Re-renderiza a lista para mostrar as alterações
+    renderRondaChecklist();
 }
 
-// **NOVA FUNÇÃO para adição manual**
-export function addEquipmentToRondaManually(id) {
-    const success = addEquipmentToRonda(id);
-    if (success) {
-        document.getElementById('output').textContent = `Equipamento com ID "${id}" adicionado manualmente.`;
-    }
-}
 
 /**
- * Callback para quando um QR Code é lido com sucesso.
+ * Função chamada quando um QR Code é lido com sucesso.
  */
 function onScanSuccess(decodedText, decodedResult) {
-    html5QrCodeScanner.pause();
-    const success = addEquipmentToRonda(decodedText);
-    if (success) {
-        document.getElementById('output').textContent = `Equipamento "${decodedText}" adicionado. Aponte para o próximo QR Code.`;
-    }
-    setTimeout(() => {
-        if (html5QrCodeScanner.getState() === Html5QrcodeScannerState.PAUSED) {
-            html5QrCodeScanner.resume();
-        }
-    }, 1500);
+    stopScanner(); // Para o scanner assim que um código é lido
+    addEquipmentToLocation(decodedText);
 }
 
 /**
  * Inicia o scanner de QR Code.
  */
 export function startScanner() {
-    document.getElementById('rondaControls').classList.add('hidden');
     document.getElementById('qrScannerContainer').classList.remove('hidden');
-
     html5QrCodeScanner = new Html5QrcodeScanner("qr-reader", { fps: 10, qrbox: { width: 250, height: 250 } }, false);
     html5QrCodeScanner.render(onScanSuccess, (error) => {});
 }
@@ -140,48 +184,51 @@ export function startScanner() {
  * Para o scanner de QR Code.
  */
 export function stopScanner() {
-    if (html5QrCodeScanner && html5QrCodeScanner.getState() !== Html5QrcodeScannerState.NOT_STARTED) {
-        html5QrCodeScanner.clear().then(_ => {
-            document.getElementById('rondaControls').classList.remove('hidden');
-            document.getElementById('qrScannerContainer').classList.add('hidden');
-        }).catch(error => console.error("Falha ao parar o scanner.", error));
-    } else {
-        document.getElementById('rondaControls').classList.remove('hidden');
+    if (html5QrCodeScanner) {
+        html5QrCodeScanner.clear().catch(err => {});
         document.getElementById('qrScannerContainer').classList.add('hidden');
     }
 }
 
 /**
- * Salva os dados da ronda atual para um ficheiro Excel.
+ * Gera e descarrega o relatório final da ronda.
  */
 export function saveRonda() {
-    if (window.rondaData.length === 0) {
-        alert("Nenhum equipamento foi verificado nesta ronda para salvar.");
+    if (rondaChecklist.length === 0) {
+        alert("Nenhuma ronda iniciada para gerar relatório.");
         return;
     }
-    const dataToExport = window.rondaData.map(item => ({
-        'TAG': item.TAG, 'Equipamento': item.Equipamento, 'Setor Oficial': item.Setor,
-        'Nº de Série': item.NumeroSerie, 'Patrimônio': item.Patrimonio,   
-        'Disponibilidade na Ronda': item.Disponibilidade, 'Localização na Ronda': item.Localizacao,
-        'Observações da Ronda': item.Observacoes, 'Data da Ronda': new Date().toLocaleString('pt-BR')
-    }));
-    const ws = XLSX.utils.json_to_sheet(dataToExport);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Coleta_Ronda");
-    XLSX.writeFile(wb, `Ronda_Coleta_${new Date().toISOString().slice(0,10)}.xlsx`);
-    
-    clearRonda();
-    alert("Ronda salva com sucesso! A lista foi limpa para a próxima ronda.");
-}
 
-/**
- * Limpa a interface da ronda para um novo início.
- */
-export function clearRonda() {
-    stopScanner();
-    window.rondaData = [];
-    const container = document.getElementById('rondaItemsContainer');
-    if (container) container.innerHTML = '<p class="ronda-placeholder">Escaneie um QR Code ou digite um ID para começar a ronda.</p>';
-    const countSpan = document.getElementById('rondaCount');
-    if (countSpan) countSpan.textContent = `Equipamentos verificados: 0`;
+    const reportData = [];
+    rondaChecklist.forEach(location => {
+        if (location.equipamentosEncontrados.length > 0) {
+            location.equipamentosEncontrados.forEach(eq => {
+                reportData.push({
+                    'Data da Ronda': new Date().toLocaleString('pt-BR'),
+                    'Setor Auditado': location.setor,
+                    'Localização Verificada': location.subLocalizacao,
+                    'TAG Encontrado': eq.TAG,
+                    'Equipamento Encontrado': eq.Equipamento,
+                    'SN Encontrado': eq.NumeroSerie,
+                    'Setor Oficial do Equipamento': eq.Setor,
+                    'Status da Divergência': eq.isOutOfSector ? 'FORA DO SETOR' : 'OK',
+                });
+            });
+        } else {
+            // Adiciona uma linha para localizações onde nada foi encontrado
+            reportData.push({
+                'Data da Ronda': new Date().toLocaleString('pt-BR'),
+                'Setor Auditado': location.setor,
+                'Localização Verificada': location.subLocalizacao,
+                'TAG Encontrado': 'N/A - Local Vazio',
+                'Equipamento Encontrado': '', 'SN Encontrado': '', 'Setor Oficial do Equipamento': '',
+                'Status da Divergência': '',
+            });
+        }
+    });
+
+    const ws = XLSX.utils.json_to_sheet(reportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Relatorio_Ronda_Guiada");
+    XLSX.writeFile(wb, `Relatorio_Ronda_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
