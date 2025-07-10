@@ -42,11 +42,6 @@
                 <label for="calibrationStatusFilter">Filtrar por Status de Calibração:</label>
                 <select id="calibrationStatusFilter">
                     <option value="">Todos os Status</option>
-                    <option value="Divergência (Todos Fornecedores)">Divergência (Todos Fornecedores)</option>
-                    <option value="Não Calibrado/Não Encontrado (Seu Cadastro)">Não Calibrado/Não Encontrado (Seu Cadastro)</option>
-                    <option value="Não Cadastrado">Não Cadastrado</option>
-                    <option value="Não Calibrado">Não Calibrado</option>
-                    <option value="Calibrado (Total)">Calibrado (Total)</option>
                 </select>
                 <span id="equipmentCount">Total: 0 equipamentos</span>
 
@@ -59,9 +54,7 @@
                     <option value="Em Manutenção Externa">Em Manutenção Externa</option>
                 </select>
             </div>
-
             <button id="exportButton" style="margin-bottom: 15px;">Exportar Tabela para Excel</button>
-
             <table id="equipmentTable">
                 <thead>
                     <tr>
@@ -75,11 +68,9 @@
                         <th>Status Calibração</th>
                         <th>Data Vencimento Calibração</th>
                     </tr>
-                    <tr id="headerFilters">
-                        </tr>
+                    <tr id="headerFilters"></tr>
                 </thead>
-                <tbody>
-                </tbody>
+                <tbody></tbody>
             </table>
         </div>
     </div>
@@ -90,7 +81,6 @@
             <p>Visão simplificada das OS em aberto com status de calibração e manutenção.</p>
             <span id="osCount">Total: 0 OS</span>
             <button id="exportOsButton" style="margin-bottom: 15px;">Exportar OS para Excel</button>
-
             <table id="osTable">
                 <thead>
                     <tr>
@@ -100,50 +90,37 @@
                         <th>Equipamento</th>
                         <th>Modelo</th>
                         <th>Fabricante</th>
-                        <th>Setor</th> </tr>
+                        <th>Setor</th>
+                    </tr>
                 </thead>
-                <tbody>
-                </tbody>
+                <tbody></tbody>
             </table>
         </div>
     </div>
 
     <div id="rondaSection" class="section-container hidden">
         <h2>Ronda de Equipamentos</h2>
-        <div id="rondaControls" style="margin-bottom: 20px; padding: 15px; background-color: #f0f8ff; border: 1px solid #cfe2ff; border-radius: 8px;">
-            <label for="rondaSectorSelect">Selecionar Setor para Ronda:</label>
-            <select id="rondaSectorSelect">
-                <option value="">Selecione um Setor</option>
-            </select>
-            <button id="startRondaButton" style="margin-left: 10px;">Iniciar Ronda</button>
-            <input type="file" id="rondaFileInput" accept=".xls,.xlsx" style="margin-left: 20px;">
-            <button id="loadRondaButton">Carregar Ronda Existente</button>
+        <div id="rondaControls">
+            <button id="startRondaScanButton">Iniciar Ronda com QR Code</button>
+            <button id="saveRondaButton">Finalizar e Salvar Ronda</button>
+            <span id="rondaCount">Equipamentos verificados: 0</span>
+        </div>
+        
+        <div id="qrScannerContainer" class="hidden">
+            <div id="qr-reader"></div>
+            <button id="stopRondaScanButton">Parar Scanner</button>
         </div>
 
-        <span id="rondaCount">Total: 0 Equipamentos na Ronda</span>
-        <button id="saveRondaButton" style="margin-bottom: 15px;">Salvar Ronda para Excel</button>
-
-        <div id="rondaTableContainer" class="equipment-table-container">
-            <table id="rondaTable">
-                <thead>
-                    <tr>
-                        <th>TAG</th>
-                        <th>Equipamento</th>
-                        <th>Setor</th>
-                        <th>Disponibilidade</th>
-                        <th>Localização (Sala/Quarto)</th>
-                        <th>Observações da Ronda</th>
-                    </tr>
-                </thead>
-                <tbody>
-                </tbody>
-            </table>
+        <div id="rondaItemsContainer">
+            <p class="ronda-placeholder">Escaneie um QR Code para começar a adicionar equipamentos.</p>
         </div>
     </div>
 
     <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+    
+    <script src="https://unpkg.com/html5-qrcode/html5-qrcode.min.js"></script>
     
     <script type="module" src="js/main.js"></script>
 </body>

@@ -352,3 +352,101 @@ button {
         float: right; /* Flutua para a direita para alinhar com o text-align da célula */
     }
 }
+/* ############################################################### */
+/* ESTILOS PARA A RONDA 3.0 (DINÂMICA E QR CODE) */
+/* ############################################################### */
+
+#rondaControls {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+#rondaControls button {
+    background-color: #28a745; /* Botão verde para iniciar */
+}
+#rondaControls button:hover {
+    background-color: #218838;
+}
+
+#qrScannerContainer {
+    width: 100%;
+    max-width: 500px;
+    margin: 1rem auto;
+    border: 2px dashed #ccc;
+    padding: 1rem;
+    border-radius: 8px;
+}
+#qrScannerContainer button {
+    margin-top: 1rem;
+    width: 100%;
+    background-color: #dc3545; /* Botão vermelho para parar */
+}
+#qrScannerContainer button:hover {
+    background-color: #c82333;
+}
+
+#rondaItemsContainer {
+    margin-top: 1rem;
+}
+
+.ronda-placeholder {
+    color: #6c757d;
+    text-align: center;
+    font-style: italic;
+    padding: 2rem;
+    border: 2px dashed #eee;
+    border-radius: 8px;
+}
+
+.ronda-card {
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-left: 5px solid #007bff; /* Borda azul para destacar */
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+.ronda-card .card-header {
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #eee;
+}
+
+.ronda-card .card-header strong {
+    font-size: 1.1em;
+    color: #333;
+}
+.ronda-card .card-header small {
+    display: block;
+    color: #6c757d;
+    font-size: 0.85em;
+}
+
+.ronda-card .card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.ronda-card .card-field {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.ronda-card .card-field label {
+    font-weight: bold;
+    color: #555;
+    flex-basis: 40%;
+}
+.ronda-card .card-field input,
+.ronda-card .card-field select {
+    flex-basis: 60%;
+    padding: 5px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
