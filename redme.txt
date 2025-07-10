@@ -1,3 +1,4 @@
+retornonado commit
 # 📊 Leitor e Analisador de Dados Excel de Equipamentos
 
 Este projeto é uma aplicação web interativa desenvolvida em HTML, CSS e JavaScript puro para auxiliar no gerenciamento e cruzamento de dados de equipamentos. Ele permite carregar múltiplas planilhas Excel (cadastro de equipamentos, calibrações de diferentes fornecedores, e manutenção externa, além de ordens de serviço) e visualizar informações cruciais de forma centralizada e filtrável.
