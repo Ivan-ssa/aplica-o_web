@@ -101,8 +101,10 @@
     <div id="rondaSection" class="section-container hidden">
         <h2>Ronda de Equipamentos</h2>
         <div id="rondaControls">
-            <button id="startRondaScanButton">Iniciar Ronda com QR Code</button>
-            <button id="saveRondaButton">Finalizar e Salvar Ronda</button>
+            <button id="startRondaScanButton">Iniciar Scanner QR Code</button>
+            <input type="text" id="rondaManualInput" placeholder="Ou digite a TAG/SN/Patrimônio">
+            <button id="rondaManualAddButton">Adicionar</button>
+            <button id="saveRondaButton" class="save-button">Finalizar e Salvar Ronda</button>
             <span id="rondaCount">Equipamentos verificados: 0</span>
         </div>
         
@@ -112,16 +114,13 @@
         </div>
 
         <div id="rondaItemsContainer">
-            <p class="ronda-placeholder">Escaneie um QR Code para começar a adicionar equipamentos.</p>
+            <p class="ronda-placeholder">Escaneie um QR Code ou digite um ID para começar a ronda.</p>
         </div>
     </div>
 
     <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
-    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
-    
     <script src="https://unpkg.com/html5-qrcode/html5-qrcode.min.js"></script>
-    
     <script type="module" src="js/main.js"></script>
 </body>
 </html>

@@ -5,17 +5,17 @@ import { renderTable, populateSectorFilter, updateEquipmentCount } from './table
 import { applyFilters } from './filterLogic.js';
 import { renderOsTable } from './osRenderer.js'; 
 // Importa as novas funções do rondaManager
-import { startScanner, stopScanner, saveRonda, clearRonda } from './rondaManager.js'; 
+import { startScanner, stopScanner, saveRonda, clearRonda, addEquipmentToRondaManually } from './rondaManager.js'; 
 
 
-// === FUNÇÃO DE NORMALIZAÇÃO DE NÚMERO DE SÉRIE / PATRIMÔNIO ===
+// === FUNÇÃO DE NORMALIZAÇÃO ===
 function normalizeId(id) {
     if (id === null || id === undefined) return '';
     let strId = String(id).trim(); 
     if (/^\d+$/.test(strId)) return String(parseInt(strId, 10)); 
     return strId.toLowerCase(); 
 }
-// =============================================================
+// =============================
 
 // Variáveis globais
 window.allEquipments = [];
@@ -36,7 +36,6 @@ const searchInput = document.getElementById('searchInput');
 const maintenanceFilter = document.getElementById('maintenanceFilter'); 
 const exportButton = document.getElementById('exportButton');
 const exportOsButton = document.getElementById('exportOsButton'); 
-const headerFiltersRow = document.getElementById('headerFilters'); 
 const showEquipmentButton = document.getElementById('showEquipmentButton');
 const showOsButton = document.getElementById('showOsButton');
 const showRondaButton = document.getElementById('showRondaButton'); 
@@ -44,21 +43,20 @@ const equipmentSection = document.getElementById('equipmentSection');
 const osSection = document.getElementById('osSection');
 const rondaSection = document.getElementById('rondaSection'); 
 
-// *** NOVOS ELEMENTOS DA RONDA ***
+// *** ELEMENTOS DA RONDA 3.0 ***
 const startRondaScanButton = document.getElementById('startRondaScanButton');
 const stopRondaScanButton = document.getElementById('stopRondaScanButton');
 const saveRondaButton = document.getElementById('saveRondaButton');
+const rondaManualInput = document.getElementById('rondaManualInput');
+const rondaManualAddButton = document.getElementById('rondaManualAddButton');
 
 
 function toggleSectionVisibility(sectionToShowId) {
+    // ... (função sem alterações)
     if (equipmentSection) equipmentSection.classList.add('hidden');
     if (osSection) osSection.classList.add('hidden');
     if (rondaSection) rondaSection.classList.add('hidden'); 
-
-    document.querySelectorAll('.toggle-section-button').forEach(button => {
-        button.classList.remove('active');
-    });
-
+    document.querySelectorAll('.toggle-section-button').forEach(button => button.classList.remove('active'));
     if (sectionToShowId === 'equipmentSection' && equipmentSection) {
         equipmentSection.classList.remove('hidden');
         showEquipmentButton.classList.add('active');
@@ -68,22 +66,17 @@ function toggleSectionVisibility(sectionToShowId) {
     } else if (sectionToShowId === 'rondaSection' && rondaSection) { 
         rondaSection.classList.remove('hidden');
         showRondaButton.classList.add('active');
-        clearRonda(); // Limpa a ronda anterior ao entrar na secção
+        clearRonda();
     }
 }
 
 
 async function handleProcessFile() {
+    // ... (função sem alterações)
     outputDiv.textContent = 'Processando arquivos...';
-    if (typeof XLSX === 'undefined') {
-        alert('ERRO CRÍTICO: A biblioteca de leitura de Excel (xlsx.js) não foi carregada.');
-        return;
-    }
+    if (typeof XLSX === 'undefined') return alert('ERRO CRÍTICO: Biblioteca de leitura (xlsx.js) não carregada.');
     const files = excelFileInput.files;
-    if (files.length === 0) {
-        outputDiv.textContent = 'Por favor, selecione os arquivos Excel.';
-        return;
-    }
+    if (files.length === 0) return outputDiv.textContent = 'Por favor, selecione os arquivos Excel.';
 
     let equipmentFile = null, consolidatedCalibrationsFile = null, externalMaintenanceFile = null, osCaliAbertasFile = null;
     for (const file of files) {
@@ -94,10 +87,7 @@ async function handleProcessFile() {
         else if (fileNameLower.includes('os_cali_abertas')) osCaliAbertasFile = file;
     }
 
-    if (!equipmentFile) {
-        outputDiv.textContent = 'Arquivo de equipamentos não encontrado.';
-        return;
-    }
+    if (!equipmentFile) return outputDiv.textContent = 'Arquivo de equipamentos não encontrado.';
 
     try {
         outputDiv.textContent = `Lendo arquivo de equipamentos: ${equipmentFile.name}...`;
@@ -150,7 +140,6 @@ async function handleProcessFile() {
         outputDiv.textContent = 'Processamento concluído. Renderizando tabelas...';
         applyAllFiltersAndRender();
         populateSectorFilter(window.allEquipments, sectorFilter);
-        // ... outras funções de renderização
         renderOsTable(window.osRawData, osTableBody, mainEquipmentsBySN, mainEquipmentsByPatrimonio, window.consolidatedCalibratedMap, window.externalMaintenanceSNs, normalizeId);
         toggleSectionVisibility('equipmentSection');
 
@@ -161,7 +150,7 @@ async function handleProcessFile() {
 }
 
 function applyAllFiltersAndRender() {
-    // Esta função permanece igual, apenas renderiza a tabela de equipamentos
+    // ... (função sem alterações)
     const filters = {
         sector: sectorFilter.value,
         calibrationStatus: calibrationStatusFilter.value,
@@ -175,7 +164,7 @@ function applyAllFiltersAndRender() {
 
 
 async function exportWithExcelJS(tableId, fileName) {
-    // Esta função permanece igual, usando ExcelJS para exportar com estilos
+    // ... (função sem alterações)
     const table = document.getElementById(tableId);
     if (!table) return alert(`Tabela com ID "${tableId}" não encontrada.`);
     if (typeof ExcelJS === 'undefined') return alert('ERRO: Biblioteca ExcelJS não carregada.');
@@ -214,19 +203,15 @@ async function exportWithExcelJS(tableId, fileName) {
             addedRow.eachCell(cell => {
                 if (tr.classList.contains('calibrated-dhme')) cell.fill = calibratedFill;
                 else if (tr.classList.contains('not-calibrated')) cell.fill = notCalibratedFill;
-                
                 if (tr.classList.contains('in-external-maintenance')) cell.font = maintenanceFont;
                 else cell.font = defaultFont;
-                
                 cell.border = defaultBorder;
             });
         });
 
         worksheet.columns.forEach(column => {
             let maxLength = 0;
-            column.eachCell({ includeEmpty: true }, cell => {
-                maxLength = Math.max(maxLength, cell.value ? cell.value.toString().length : 0);
-            });
+            column.eachCell({ includeEmpty: true }, cell => { maxLength = Math.max(maxLength, cell.value ? cell.value.toString().length : 0); });
             column.width = maxLength < 12 ? 12 : maxLength + 4;
         });
         
@@ -259,7 +244,7 @@ showEquipmentButton.addEventListener('click', () => toggleSectionVisibility('equ
 showOsButton.addEventListener('click', () => toggleSectionVisibility('osSection'));
 showRondaButton.addEventListener('click', () => toggleSectionVisibility('rondaSection')); 
 
-// *** NOVOS EVENT LISTENERS PARA A RONDA 3.0 ***
+// *** EVENT LISTENERS ATUALIZADOS PARA A RONDA 3.0 ***
 startRondaScanButton.addEventListener('click', () => {
     if (window.allEquipments.length === 0) {
         alert("Por favor, carregue primeiro os ficheiros de dados antes de iniciar a ronda.");
@@ -270,6 +255,32 @@ startRondaScanButton.addEventListener('click', () => {
 stopRondaScanButton.addEventListener('click', stopScanner);
 saveRondaButton.addEventListener('click', saveRonda);
 
+// ** NOVO EVENT LISTENER PARA ADIÇÃO MANUAL **
+rondaManualAddButton.addEventListener('click', () => {
+    const id = rondaManualInput.value;
+    if (!id.trim()) {
+        alert("Por favor, digite uma TAG, SN ou Patrimônio.");
+        return;
+    }
+    if (window.allEquipments.length === 0) {
+        alert("Por favor, carregue primeiro os ficheiros de dados.");
+        return;
+    }
+    addEquipmentToRondaManually(id);
+    rondaManualInput.value = ''; // Limpa o campo após a tentativa
+});
+
+// Adiciona listener para a tecla "Enter" no campo de adição manual
+rondaManualInput.addEventListener('keyup', (event) => {
+    if (event.key === 'Enter') {
+        event.preventDefault(); // Impede o comportamento padrão do Enter (ex: submeter formulário)
+        rondaManualAddButton.click(); // Simula um clique no botão "Adicionar"
+    }
+});
+
+
 document.addEventListener('DOMContentLoaded', () => {
     toggleSectionVisibility('equipmentSection');
+    // As funções `setupHeaderFilters` e `populateCalibrationStatusFilter` foram movidas para dentro do `handleProcessFile`
+    // para garantir que são chamadas apenas depois de os dados estarem carregados.
 });

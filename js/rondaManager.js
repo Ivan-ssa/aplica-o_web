@@ -1,26 +1,20 @@
 // js/rondaManager.js
 
-// Variável para guardar a instância do scanner e os dados da ronda atual
 let html5QrCodeScanner;
 window.rondaData = []; // Começa sempre vazio
 
 /**
  * Adiciona um cartão de item de ronda à interface.
- * @param {Object} item - O objeto de dados do equipamento escaneado.
+ * @param {Object} item - O objeto de dados do equipamento.
  */
 function renderRondaCard(item) {
     const container = document.getElementById('rondaItemsContainer');
-    
-    // Remove o texto inicial "Escaneie um QR Code..." se for o primeiro item
     const placeholder = container.querySelector('.ronda-placeholder');
-    if (placeholder) {
-        placeholder.remove();
-    }
+    if (placeholder) placeholder.remove();
 
-    // Cria o elemento do cartão
     const card = document.createElement('div');
     card.className = 'ronda-card';
-    card.dataset.sn = item.NumeroSerie; // Identificador único para o cartão
+    card.dataset.sn = item.NumeroSerie;
 
     card.innerHTML = `
         <div class="card-header">
@@ -51,12 +45,12 @@ function renderRondaCard(item) {
         </div>
     `;
 
-    // Adiciona event listeners para atualizar os dados em tempo real
     card.querySelector(`#loc-${item.NumeroSerie}`).addEventListener('change', (e) => updateRondaItem(item.NumeroSerie, 'Localizacao', e.target.value));
     card.querySelector(`#disp-${item.NumeroSerie}`).addEventListener('change', (e) => updateRondaItem(item.NumeroSerie, 'Disponibilidade', e.target.value));
     card.querySelector(`#obs-${item.NumeroSerie}`).addEventListener('change', (e) => updateRondaItem(item.NumeroSerie, 'Observacoes', e.target.value));
 
-    container.prepend(card); // Adiciona o novo cartão no topo da lista
+    container.prepend(card);
+    document.getElementById('rondaCount').textContent = `Equipamentos verificados: ${window.rondaData.length}`;
 }
 
 /**
@@ -69,96 +63,91 @@ function updateRondaItem(sn, property, value) {
     }
 }
 
-
 /**
- * Função chamada quando um QR Code é lido com sucesso.
- * @param {string} decodedText - O texto lido do QR Code (deve ser o SN ou TAG).
- * @param {Object} decodedResult - O objeto de resultado completo do scanner.
+ * Lógica central para adicionar um equipamento à ronda, seja por QR Code ou manual.
+ * @param {string} id - O ID (SN, TAG, Patrimônio) a ser procurado.
+ * @returns {boolean} - Retorna true se o item foi adicionado com sucesso, false caso contrário.
  */
-function onScanSuccess(decodedText, decodedResult) {
-    console.log(`Código lido: ${decodedText}`);
-    html5QrCodeScanner.pause(); // Pausa o scanner para o utilizador preencher os dados
+function addEquipmentToRonda(id) {
+    const normalizedId = String(id).trim().toLowerCase();
+    if (!normalizedId) return false;
 
-    // Normaliza o ID lido para corresponder à base de dados
-    const normalizedId = String(decodedText).trim().toLowerCase();
-
-    // Procura o equipamento na base de dados principal (allEquipments)
     const equipmentFound = window.allEquipments.find(eq => 
         String(eq.NumeroSerie).trim().toLowerCase() === normalizedId || 
-        String(eq.TAG).trim().toLowerCase() === normalizedId
+        String(eq.TAG).trim().toLowerCase() === normalizedId ||
+        String(eq.Patrimonio).trim().toLowerCase() === normalizedId
     );
 
     if (!equipmentFound) {
-        alert(`Equipamento com ID "${decodedText}" não encontrado na base de dados.`);
-        html5QrCodeScanner.resume(); // Retoma o scanner
-        return;
+        alert(`Equipamento com ID "${id}" não encontrado na base de dados.`);
+        return false;
     }
 
-    // Verifica se este equipamento já foi escaneado nesta ronda
     if (window.rondaData.some(item => item.NumeroSerie === equipmentFound.NumeroSerie)) {
         alert(`Equipamento "${equipmentFound.Equipamento}" já foi verificado nesta ronda.`);
-        html5QrCodeScanner.resume();
-        return;
+        return false;
     }
 
-    // Adiciona o novo equipamento à lista da ronda
     const newItem = {
         TAG: equipmentFound.TAG ?? '',
         Equipamento: equipmentFound.Equipamento ?? '',
-        Setor: equipmentFound.Setor ?? '', // Setor oficial para referência
+        Setor: equipmentFound.Setor ?? '',
         NumeroSerie: equipmentFound.NumeroSerie ?? '',
         Patrimonio: equipmentFound.Patrimonio ?? '',
-        Localizacao: '',     // Campo a ser preenchido pelo utilizador
-        Disponibilidade: '', // Campo a ser preenchido pelo utilizador
-        Observacoes: ''      // Campo a ser preenchido pelo utilizador
+        Localizacao: '', Disponibilidade: '', Observacoes: ''
     };
     window.rondaData.push(newItem);
-
-    // Renderiza o novo cartão na interface
     renderRondaCard(newItem);
-    
-    // Atualiza a contagem
-    document.getElementById('rondaCount').textContent = `Equipamentos verificados: ${window.rondaData.length}`;
+    return true;
+}
 
-    // Mostra feedback e retoma o scanner após um pequeno atraso
-    const outputDiv = document.getElementById('output');
-    outputDiv.textContent = `Equipamento "${newItem.Equipamento}" adicionado. Aponte para o próximo QR Code.`;
+// **NOVA FUNÇÃO para adição manual**
+export function addEquipmentToRondaManually(id) {
+    const success = addEquipmentToRonda(id);
+    if (success) {
+        document.getElementById('output').textContent = `Equipamento com ID "${id}" adicionado manualmente.`;
+    }
+}
+
+/**
+ * Callback para quando um QR Code é lido com sucesso.
+ */
+function onScanSuccess(decodedText, decodedResult) {
+    html5QrCodeScanner.pause();
+    const success = addEquipmentToRonda(decodedText);
+    if (success) {
+        document.getElementById('output').textContent = `Equipamento "${decodedText}" adicionado. Aponte para o próximo QR Code.`;
+    }
     setTimeout(() => {
-        html5QrCodeScanner.resume();
-    }, 1500); // Espera 1.5 segundos antes de reativar
+        if (html5QrCodeScanner.getState() === Html5QrcodeScannerState.PAUSED) {
+            html5QrCodeScanner.resume();
+        }
+    }, 1500);
 }
 
 /**
  * Inicia o scanner de QR Code.
  */
 export function startScanner() {
-    // Esconde o botão de iniciar e mostra o container do scanner
-    document.getElementById('startRondaScanButton').classList.add('hidden');
-    const scannerContainer = document.getElementById('qrScannerContainer');
-    scannerContainer.classList.remove('hidden');
+    document.getElementById('rondaControls').classList.add('hidden');
+    document.getElementById('qrScannerContainer').classList.remove('hidden');
 
-    html5QrCodeScanner = new Html5QrcodeScanner(
-        "qr-reader", // ID do elemento div no HTML
-        { fps: 10, qrbox: { width: 250, height: 250 } }, // Configurações do scanner
-        false // verbose = false
-    );
-    html5QrCodeScanner.render(onScanSuccess, (error) => {
-        // Lidar com erros de scan, geralmente ignorado
-    });
+    html5QrCodeScanner = new Html5QrcodeScanner("qr-reader", { fps: 10, qrbox: { width: 250, height: 250 } }, false);
+    html5QrCodeScanner.render(onScanSuccess, (error) => {});
 }
 
 /**
  * Para o scanner de QR Code.
  */
 export function stopScanner() {
-    if (html5QrCodeScanner) {
+    if (html5QrCodeScanner && html5QrCodeScanner.getState() !== Html5QrcodeScannerState.NOT_STARTED) {
         html5QrCodeScanner.clear().then(_ => {
-            console.log("Scanner parado com sucesso.");
-            document.getElementById('startRondaScanButton').classList.remove('hidden');
+            document.getElementById('rondaControls').classList.remove('hidden');
             document.getElementById('qrScannerContainer').classList.add('hidden');
-        }).catch(error => {
-            console.error("Falha ao parar o scanner.", error);
-        });
+        }).catch(error => console.error("Falha ao parar o scanner.", error));
+    } else {
+        document.getElementById('rondaControls').classList.remove('hidden');
+        document.getElementById('qrScannerContainer').classList.add('hidden');
     }
 }
 
@@ -170,29 +159,18 @@ export function saveRonda() {
         alert("Nenhum equipamento foi verificado nesta ronda para salvar.");
         return;
     }
-
     const dataToExport = window.rondaData.map(item => ({
-        'TAG': item.TAG,
-        'Equipamento': item.Equipamento,
-        'Setor Oficial': item.Setor,
-        'Nº de Série': item.NumeroSerie, 
-        'Patrimônio': item.Patrimonio,   
-        'Disponibilidade na Ronda': item.Disponibilidade,
-        'Localização na Ronda': item.Localizacao,
-        'Observações da Ronda': item.Observacoes,
-        'Data da Ronda': new Date().toLocaleString('pt-BR')
+        'TAG': item.TAG, 'Equipamento': item.Equipamento, 'Setor Oficial': item.Setor,
+        'Nº de Série': item.NumeroSerie, 'Patrimônio': item.Patrimonio,   
+        'Disponibilidade na Ronda': item.Disponibilidade, 'Localização na Ronda': item.Localizacao,
+        'Observações da Ronda': item.Observacoes, 'Data da Ronda': new Date().toLocaleString('pt-BR')
     }));
-    
-    // Usa a biblioteca xlsx.js para criar o ficheiro (já que está carregada para a leitura)
     const ws = XLSX.utils.json_to_sheet(dataToExport);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Coleta_Ronda");
     XLSX.writeFile(wb, `Ronda_Coleta_${new Date().toISOString().slice(0,10)}.xlsx`);
     
-    // Limpa os dados para a próxima ronda
-    window.rondaData = [];
-    document.getElementById('rondaItemsContainer').innerHTML = '<p class="ronda-placeholder">Escaneie um QR Code para começar a adicionar equipamentos.</p>';
-    document.getElementById('rondaCount').textContent = `Equipamentos verificados: 0`;
+    clearRonda();
     alert("Ronda salva com sucesso! A lista foi limpa para a próxima ronda.");
 }
 
@@ -203,11 +181,7 @@ export function clearRonda() {
     stopScanner();
     window.rondaData = [];
     const container = document.getElementById('rondaItemsContainer');
-    if (container) {
-        container.innerHTML = '<p class="ronda-placeholder">Escaneie um QR Code para começar a adicionar equipamentos.</p>';
-    }
+    if (container) container.innerHTML = '<p class="ronda-placeholder">Escaneie um QR Code ou digite um ID para começar a ronda.</p>';
     const countSpan = document.getElementById('rondaCount');
-    if (countSpan) {
-        countSpan.textContent = `Equipamentos verificados: 0`;
-    }
+    if (countSpan) countSpan.textContent = `Equipamentos verificados: 0`;
 }
